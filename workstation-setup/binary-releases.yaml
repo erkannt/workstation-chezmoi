@@ -3,6 +3,7 @@
   become: true
 
   tasks:
+    # KUBECTX
     - name: Check if kubectx is installed
       stat:
         path: /usr/local/bin/kubectx
@@ -22,3 +23,24 @@
         remote_src: true
         mode: a+x
       when: not kubectx.stat.exists
+
+    # KUBENS
+    - name: Check if kubens is installed
+      stat:
+        path: /usr/local/bin/kubens
+      register: kubens
+
+    - name: Unarchive kubens
+      unarchive:
+        src: "https://github.com/ahmetb/kubectx/releases/download/v0.9.4/kubens_v0.9.4_linux_x86_64.tar.gz"
+        dest: /tmp
+        remote_src: true
+      when: not kubens.stat.exists
+
+    - name: Install kubens
+      copy:
+        src: /tmp/kubens
+        dest: /usr/local/bin/kubens
+        remote_src: true
+        mode: a+x
+      when: not kubens.stat.exists
