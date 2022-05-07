@@ -10,6 +10,11 @@
         enabled: false
         state: stopped
 
+    # Applications
+    - name: "Install Slack"
+      apt:
+        deb: https://downloads.slack-edge.com/releases/linux/4.25.0/prod/x64/slack-desktop-4.25.0-amd64.deb
+
     # DOCKER
     - name: "Docker reqs"
       apt:
@@ -47,3 +52,9 @@
         append: true
         groups: docker
         name: hff
+
+    # Dist upgrade
+    - name: "apt dist-upgrade"
+      apt:
+        update_cache: true
+        upgrade: dist
