@@ -26,6 +26,7 @@
         - git-lfs
         - restic
         - gh
+        - age
 
     - name: Install apps from deb packages
       apt:
