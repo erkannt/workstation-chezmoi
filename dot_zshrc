@@ -13,6 +13,22 @@ autoload -Uz compinit
 compinit
 # End of lines added by compinstall
 
+# MISC
+alias ll="ls -l"
+alias mouse="xinput --set-button-map $(xinput list | grep M570 | cut -f 2 | cut -d '=' -f 2) 1 2 3 4 5 6 7 8 2 "
+
+# SCIETY
+alias lt="rm -f static/style.css && APP_ORIGIN=foo APP_SECRET=foo PGUSER=foo PGHOST=foo PGPASSWORD=foo PGDATABASE=foo TWITTER_API_KEY=foo TWITTER_API_SECRET_KEY=foo TWITTER_API_BEARER_TOKEN=foo ESLINT=--fix STYLELINT=--fix npx run-p --aggregate-output --continue-on-error --print-label --silent lint:stylelint lint:unused-exports build:css && make unused-sass"
+alias jw="APP_ORIGIN=foo APP_SECRET=foo PGUSER=foo PGHOST=foo PGPASSWORD=foo PGDATABASE=foo TWITTER_API_KEY=foo TWITTER_API_SECRET_KEY=foo TWITTER_API_BEARER_TOKEN=foo bash -c 'npx jest --watch'"
+alias glhf="git pull --prune && make dev"
+alias tsw="npx tsc -w --project tsconfig.dev.json"
+alias tsu="npx ts-unused-exports tsconfig.dev.json --silent --ignoreTestFiles"
+
+# KUBERNETES
+alias kc="kubectl"
+alias kns="kubens"
+alias ktx="kubectx"
+
 # CHEZMOI
 alias cm='chezmoi'
 alias cms='chezmoi status'
@@ -29,6 +45,8 @@ alias gcm='git commit -m'
 alias gpl='git pull'
 alias gps='git push'
 alias gfb='git fetch && git rebase'
+alias gco='git checkout'
+alias gap='git add --patch'
 
 # NVM
 export NVM_DIR="$HOME/.nvm"
