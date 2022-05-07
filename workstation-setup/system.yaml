@@ -1,0 +1,10 @@
+- name: "Configure System"
+  hosts: localhost
+  become: true
+
+  tasks:
+    - name: "Disable packagekitd so that it stops interfering"
+      service:
+        name: packagekit
+        enabled: false
+        state: stopped

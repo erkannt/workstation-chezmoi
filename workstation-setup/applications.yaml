@@ -1,0 +1,11 @@
+- name: "Install Applications"
+  hosts: localhost
+  become: true
+
+  tasks:
+    - name: Install apps from deb packages
+      apt:
+        deb: "{{ item }}"
+      loop:
+        - https://downloads.slack-edge.com/releases/linux/4.25.0/prod/x64/slack-desktop-4.25.0-amd64.deb
+        - https://az764295.vo.msecnd.net/stable/57fd6d0195bb9b9d1b49f6da5db789060795de47/code_1.67.0-1651667246_amd64.deb

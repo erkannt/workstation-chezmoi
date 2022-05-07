@@ -1,0 +1,41 @@
+- name: Install Docker, Compose and setup for hff
+  hosts: localhost
+  become: true
+
+  tasks:
+    - name: "Docker reqs"
+      apt:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - ca-certificates
+        - curl
+        - gnupg
+        - lsb-release
+
+    - name: "Docker GPG apt Key"
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: "Docker repository"
+      apt_repository:
+        repo: deb https://download.docker.com/linux/ubuntu focal stable
+        state: present
+
+    - name: "Install docker and compose"
+      apt:
+        name: "{{ item }}"
+        state: present
+        update_cache: true
+      loop:
+        - docker-ce
+        - docker-ce-cli
+        - containerd.io
+        - docker-compose-plugin
+
+    - name: "Add hff to docker group"
+      user:
+        append: true
+        groups: docker
+        name: hff

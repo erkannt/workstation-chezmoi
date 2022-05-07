@@ -2,8 +2,8 @@
 
 .DEFAULT_GOAL := ansible
 
-ansible-lint:
-	ansible-lint playbook.yaml
+lint:
+	ansible-lint *.yaml
 
-ansible: ansible-lint
-	ansible-playbook playbook.yaml
+ansible: lint
+	ansible-playbook all.yaml
