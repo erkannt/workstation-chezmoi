@@ -37,6 +37,8 @@
         - restic
         - age
         - jq
+        - tmux
+        - zsh
 
     - name: Install apps from deb packages
       apt:

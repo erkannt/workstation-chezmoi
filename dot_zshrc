@@ -1,0 +1,41 @@
+# Lines configured by zsh-newuser-install
+HISTFILE=~/.histfile
+HISTSIZE=10000
+SAVEHIST=10000
+setopt autocd
+bindkey -e
+# End of lines configured by zsh-newuser-install
+#
+# The following lines were added by compinstall
+zstyle :compinstall filename '/home/hff/.zshrc'
+
+autoload -Uz compinit
+compinit
+# End of lines added by compinstall
+
+# CHEZMOI
+alias cm='chezmoi'
+alias cms='chezmoi status'
+alias cmgst='cm git status'
+alias cmgcm='cm git commit'
+alias cmgps='cm git push'
+
+# ANSIBLE
+alias ans='ansible-playbook'
+
+# GIT
+alias gst='git status'
+alias gcm='git commit -m'
+alias gpl='git pull'
+alias gps='git push'
+alias gfb='git fetch && git rebase'
+
+# NVM
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+
+# DEFAULT EDITOR
+export EDITOR="vim"
+export VISUAL="vim"
+
