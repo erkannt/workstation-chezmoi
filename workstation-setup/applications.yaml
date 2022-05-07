@@ -3,13 +3,29 @@
   become: true
 
   tasks:
-    - name: Install form regular repositories
+    - name: Add repo keys
+      apt_key:
+        url: "{{ item }}"
+        state: present
+      loop:
+        - https://cli.github.com/packages/githubcli-archive-keyring.gpg
+
+    - name: Add repos
+      apt_repository:
+        repo: "{{ item }}"
+        state: present
+      loop:
+        - deb https://cli.github.com/packages stable main
+
+    - name: Install from repositories
       apt:
         name: "{{ item }}"
         state: present
+        update_cache: true
       loop:
         - git-lfs
         - restic
+        - gh
 
     - name: Install apps from deb packages
       apt:
