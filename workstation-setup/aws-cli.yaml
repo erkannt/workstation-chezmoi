@@ -1,0 +1,30 @@
+- name: Install aws cli
+  hosts: localhost
+  become: true
+
+  tasks:
+    - name: Check if aws-cli is installed
+      stat:
+        path: /usr/bin/aws
+      register: cli
+
+    - name: Download the awscli bundle
+      get_url:
+        url: https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip
+        dest: /tmp/awscli2.zip
+      when: not cli.stat.exists
+
+    - name: Unarchive the installer
+      unarchive:
+        src: /tmp/awscli2.zip
+        dest: /tmp
+        copy: true
+        creates: /tmp/aws
+      when: not cli.stat.exists
+
+    - name: Install awscli package
+      command:
+        cmd: ./aws/install
+        chdir: /tmp
+        creates: /usr/local/bin/aws
+      when: not cli.stat.exists
