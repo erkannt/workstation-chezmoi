@@ -39,6 +39,7 @@
         - jq
         - tmux
         - zsh
+        - tree
 
     - name: Install apps from deb packages
       apt:
