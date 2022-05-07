@@ -119,7 +119,13 @@ fi
 # my stuff
 
 alias cm='chezmoi'
+alias cms='chezmoi status'
+alias cmgst='cm git status'
+alias cmgcm='cm git commit'
+alias cmgps='cm git push'
+
 alias ans='ansible-playbook'
+
 alias gst='git status'
 alias gcm='git commit -m'
 alias gpl='git pull'
