@@ -2,3 +2,4 @@
 - import_playbook: applications.yaml
 - import_playbook: docker.yaml
 - import_playbook: apt-dist-upgrade.yaml
+- import_playbook: node.yaml
