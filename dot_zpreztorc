@@ -128,10 +128,17 @@ zstyle ':prezto:module:editor' key-bindings 'vi'
 # Prompt
 #
 
+# Expand fpath so that my theme can live outside of prezto tree.
+# This makes it possible to play nice with chezmoi.
+fpath=(
+  ${HOME}/.zprezto-rknt/modules/prompt/functions
+  ${fpath}
+)
+
 # Set the prompt theme to load.
 # Setting it to 'random' loads a random theme.
 # Auto set to 'off' on dumb terminals.
-zstyle ':prezto:module:prompt' theme 'steeef'
+zstyle ':prezto:module:prompt' theme 'rknt'
 
 # Set the working directory prompt display length.
 # By default, it is set to 'short'. Set it to 'long' (without '~' expansion)
