@@ -3,7 +3,7 @@
   become: true
 
   tasks:
-    - name: st build dependencies
+    - name: dwm build dependencies
       apt:
         name: "{{ item }}"
         state: present
@@ -13,7 +13,7 @@
         - libxinerama-dev
         - sharutils
 
-    - name: Get st source
+    - name: Get dwm source
       git:
         repo: "https://github.com/erkannt/my-dwm.git"
         version: "main"
@@ -26,16 +26,19 @@
 
     - name: Get dwm-from-gdm
       git:
-        repo: "https://github.com/nbirnel/dwm-from-gdm.git"
-        version: "61518b3"
+        repo: "https://github.com/erkannt/my-dwm-from-gdm.git"
+        version: "master"
         dest: /tmp/dwm-from-gdm
 
-    - name: Make dwm accesible from gdm
+    - name: Make dwm accesible from gdm and set launch script
       make:
         chdir: /tmp/dwm-from-gdm
         target: install
 
-    - name: Install rofi launcher
+    - name: Install related tools
       apt:
-        name: rofi
+        name: "{{ item }}"
         state: present
+      loop:
+        - rofi
+        - feh
