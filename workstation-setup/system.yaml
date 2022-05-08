@@ -13,3 +13,8 @@
       apt:
         name: system76-scheduler
         state: absent
+
+    - name: "Install nvidia driver for GTX 650 Ti"
+      apt:
+        name: nvidia-driver-390
+        state: present
