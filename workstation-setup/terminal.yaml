@@ -1,0 +1,24 @@
+- name: "Install my terminal"
+  hosts: localhost
+  become: true
+
+  tasks:
+    - name: st build deps
+      apt:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - fontconfig
+        - libx11-dev
+        - libxft-dev
+
+    - name: Get st source
+      git:
+        repo: "https://github.com/erkannt/my-st.git"
+        version: "main"
+        dest: /tmp/st
+
+    - name: Install st
+      make:
+        chdir: /tmp/st
+        target: install
