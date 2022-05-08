@@ -1,0 +1,41 @@
+- name: Install window manager
+  hosts: localhost
+  become: true
+
+  tasks:
+    - name: st build dependencies
+      apt:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - build-essential
+        - libx11-dev
+        - libxinerama-dev
+        - sharutils
+
+    - name: Get st source
+      git:
+        repo: "https://github.com/erkannt/my-dwm.git"
+        version: "main"
+        dest: /tmp/dwm
+
+    - name: Install dwm
+      make:
+        chdir: /tmp/dwm
+        target: install
+
+    - name: Get dwm-from-gdm
+      git:
+        repo: "https://github.com/nbirnel/dwm-from-gdm.git"
+        version: "61518b3"
+        dest: /tmp/dwm-from-gdm
+
+    - name: Make dwm accesible from gdm
+      make:
+        chdir: /tmp/dwm-from-gdm
+        target: install
+
+    - name: Install rofi launcher
+      apt:
+        name: rofi
+        state: present

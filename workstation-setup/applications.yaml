@@ -40,6 +40,7 @@
         - tmux
         - zsh
         - tree
+        - pavucontrol
 
     - name: Install apps from deb packages
       apt:
