@@ -42,6 +42,7 @@
       loop:
         - rofi
         - feh
+        - dunst
 
     - name: Get sb (dwm menu bar thingo)
       git:
