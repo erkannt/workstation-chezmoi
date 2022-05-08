@@ -8,3 +8,8 @@
         name: packagekit
         enabled: false
         state: stopped
+
+    - name: Remove system76-scheduler as it correlates with system crashing
+      apt:
+        name: system76-scheduler
+        state: absent
