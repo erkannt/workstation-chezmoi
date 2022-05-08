@@ -10,6 +10,7 @@
       loop:
         - https://cli.github.com/packages/githubcli-archive-keyring.gpg
         - https://packages.cloud.google.com/apt/doc/apt-key.gpg
+        - https://download.spotify.com/debian/pubkey_5E3C45D7B312C643.gpg
 
     - name: Add repos
       apt_repository:
@@ -18,6 +19,7 @@
       loop:
         - deb https://cli.github.com/packages stable main
         - deb https://apt.kubernetes.io/ kubernetes-xenial main
+        - deb http://repository.spotify.com stable non-free
 
     - name: Install from external repositories
       apt:
@@ -27,6 +29,7 @@
       loop:
         - gh
         - kubectl=1.19.15-00
+        - spotify-client
 
     - name: Install from regular repositories
       apt:
