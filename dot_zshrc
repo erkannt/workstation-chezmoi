@@ -25,6 +25,7 @@ alias tsu="npx ts-unused-exports tsconfig.dev.json --silent --ignoreTestFiles"
 alias mbt="make backstop-test"
 
 # KUBERNETES
+source <(kubectl completion zsh)
 alias kc="kubectl"
 alias kns="kubens"
 alias ktx="kubectx"
