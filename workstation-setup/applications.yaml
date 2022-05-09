@@ -3,6 +3,23 @@
   become: true
 
   tasks:
+    # REGULAR
+    - name: Install from regular repositories
+      apt:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - git-lfs
+        - restic
+        - age
+        - jq
+        - tmux
+        - zsh
+        - tree
+        - pavucontrol
+        - chromium-browser
+
+    # OTHER REPOS
     - name: Add repo keys
       apt_key:
         url: "{{ item }}"
@@ -34,20 +51,7 @@
         - spotify-client
         - google-cloud-cli
 
-    - name: Install from regular repositories
-      apt:
-        name: "{{ item }}"
-        state: present
-      loop:
-        - git-lfs
-        - restic
-        - age
-        - jq
-        - tmux
-        - zsh
-        - tree
-        - pavucontrol
-
+    # FROM DEBS
     - name: Install apps from deb packages
       apt:
         deb: "{{ item }}"
