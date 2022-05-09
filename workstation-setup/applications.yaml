@@ -18,6 +18,9 @@
         - tree
         - pavucontrol
         - chromium-browser
+        - htop
+        - btop
+        - iftop
 
     # OTHER REPOS
     - name: Add repo keys
