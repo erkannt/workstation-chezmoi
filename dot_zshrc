@@ -22,6 +22,7 @@ alias jw="APP_ORIGIN=foo APP_SECRET=foo PGUSER=foo PGHOST=foo PGPASSWORD=foo PGD
 alias glhf="git pull --prune && make dev"
 alias tsw="npx tsc -w --project tsconfig.dev.json"
 alias tsu="npx ts-unused-exports tsconfig.dev.json --silent --ignoreTestFiles"
+alias mbt="make backstop-test"
 
 # KUBERNETES
 alias kc="kubectl"
