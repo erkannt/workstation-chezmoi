@@ -51,7 +51,7 @@
         update_cache: true
       loop:
         - gh
-        - kubectl=1.19.15-00
+        - kubectl
         - spotify-client
         - google-cloud-cli
 
