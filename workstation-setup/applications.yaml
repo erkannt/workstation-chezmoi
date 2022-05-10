@@ -21,6 +21,7 @@
         - htop
         - btop
         - iftop
+        - python3-virtualenv
 
     # OTHER REPOS
     - name: Add repo keys
