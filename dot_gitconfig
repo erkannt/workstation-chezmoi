@@ -16,3 +16,5 @@
 	hp = "!. ~/.bin/git_funcs && show_git_head"
 	l = "!. ~/.bin/git_funcs && pretty_git_log"
 	la = !git l --all
+	r = !git l -20
+	tree = log --graph --oneline --decorate --branches --all
