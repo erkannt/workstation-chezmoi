@@ -30,6 +30,9 @@ alias kc="kubectl"
 alias kns="kubens"
 alias ktx="kubectx"
 
+# DOCKER
+export DOCKER_BUILDKIT=1
+
 # CHEZMOI
 alias cm='chezmoi'
 alias cms='chezmoi status'
