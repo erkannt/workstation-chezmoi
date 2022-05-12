@@ -22,6 +22,7 @@
         - btop
         - iftop
         - python3-venv
+        - inkscape
 
     # OTHER REPOS
     - name: Add repo keys
