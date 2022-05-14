@@ -10,6 +10,7 @@
         state: present
       loop:
         - git-lfs
+        - git-crypt
         - restic
         - age
         - jq
