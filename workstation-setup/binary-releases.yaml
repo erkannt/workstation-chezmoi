@@ -3,6 +3,26 @@
   become: true
 
   tasks:
+    # MINIO
+    - name: Check if minio is installed
+      stat:
+        path: /usr/local/bin/minio
+      register: minio
+
+    - name: Download minio
+      get_url:
+        url: https://dl.min.io/client/mc/release/linux-amd64/mc
+        dest: /tmp/mc
+
+    - name: Install minio
+      copy:
+        src: /tmp/mc
+        dest: /usr/local/bin/mc
+        remote_src: true
+        mode: a+x
+      when: not minio.stat.exists
+    
+
     # KUBECTX
     - name: Check if kubectx is installed
       stat:
