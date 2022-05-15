@@ -13,14 +13,20 @@
         - gnupg
         - lsb-release
 
-    - name: "Docker GPG apt Key"
-      apt_key:
-        url: https://download.docker.com/linux/ubuntu/gpg
-        state: present
+    - name: "Download GPG apt Key"
+      get_url:
+        url: https://download.docker.com/linux/debian/gpg
+        dest: /usr/share/keyrings/docker-archive-keyring.gpg_armored
+
+    - name: De-Armor GPG key
+      command:
+        cmd: gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg /usr/share/keyrings/docker-archive-keyring.gpg_armored 
+        creates: /usr/share/keyrings/docker-archive-keyring.gpg
+      no_log: false
 
     - name: "Docker repository"
       apt_repository:
-        repo: deb https://download.docker.com/linux/ubuntu focal stable
+        repo: "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu jammy stable"
         state: present
 
     - name: "Install docker and compose"

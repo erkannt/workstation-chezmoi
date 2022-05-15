@@ -1,0 +1,70 @@
+- name: "Install Applications"
+  hosts: localhost
+  become: true
+
+  vars:
+    - unarmored:
+      - pkg: gh
+        repo: "deb [arch=amd64 signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main"
+        key_url: https://cli.github.com/packages/githubcli-archive-keyring.gpg
+        key_name: githubcli-archive-keyring
+      - pkg: kubectl
+        repo: "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main"
+        key_url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+        key_name: kubernetes-archive-keyring
+      - pkg: google-cloud-cli
+        repo: "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main"
+        key_url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+        key_name: cloud.google
+
+  tasks:
+    # UNARMORED
+    - name: Download repo key
+      get_url:
+        url: "{{ item.key_url }}"
+        dest: "/usr/share/keyrings/{{ item.key_name }}.gpg"
+      loop: "{{ unarmored }}"
+
+    - name: Add repository
+      apt_repository:
+        repo: "{{ item.repo }}"
+        state: present
+      loop: "{{ unarmored }}"
+
+    - name: Install from external repositories
+      apt:
+        name: "{{ item.pkg }}"
+        state: present
+        update_cache: true
+      loop: "{{ unarmored }}"
+
+
+    # LEGACY
+    - name: Add repo keys
+      apt_key:
+        url: "{{ item }}"
+        state: present
+      loop:
+        - https://download.spotify.com/debian/pubkey_5E3C45D7B312C643.gpg
+
+    - name: Add repos
+      apt_repository:
+        repo: "{{ item }}"
+        state: present
+      loop:
+        - deb http://repository.spotify.com stable non-free
+
+    - name: Install from external repositories
+      apt:
+        name: spotify-client
+        state: present
+        update_cache: true
+
+    # FROM DEBS
+    - name: Install apps from deb packages
+      apt:
+        deb: "{{ item }}"
+      loop:
+        - https://downloads.slack-edge.com/releases/linux/4.25.0/prod/x64/slack-desktop-4.25.0-amd64.deb
+        - https://az764295.vo.msecnd.net/stable/57fd6d0195bb9b9d1b49f6da5db789060795de47/code_1.67.0-1651667246_amd64.deb
+        - https://downloads.1password.com/linux/debian/amd64/stable/1password-latest.deb
