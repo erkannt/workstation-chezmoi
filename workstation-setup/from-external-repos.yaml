@@ -23,6 +23,18 @@
         key_name: cloud.google
 
   tasks:
+    # PPA
+    - name: quickemu repo
+      apt_repository:
+        repo: ppa:flexiondotorg/quickemu
+        state: present
+
+    - name: install quickemu
+      apt:
+        name: quickemu
+        state: present
+        update_cache: true
+
     # ARMORED
     - name: Download repo key
       get_url:
