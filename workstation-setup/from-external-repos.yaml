@@ -3,6 +3,11 @@
   become: true
 
   vars:
+    - armored:
+      - pkg: signal-desktop
+        repo: "deb [arch=amd64 signed-by=/usr/share/keyrings/signal-desktop-keyring.gpg] https://updates.signal.org/desktop/apt xenial main"
+        key_url: https://updates.signal.org/desktop/apt/keys.asc
+        key_name: signal-desktop-keyring
     - unarmored:
       - pkg: gh
         repo: "deb [arch=amd64 signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main"
@@ -18,6 +23,32 @@
         key_name: cloud.google
 
   tasks:
+    # ARMORED
+    - name: Download repo key
+      get_url:
+        url: "{{ item.key_url }}"
+        dest: "/usr/share/keyrings/{{ item.key_name }}.gpg_armored"
+      loop: "{{ armored }}"
+
+    - name: Download repo key
+      shell:
+        cmd: "cat /usr/share/keyrings/{{ item.key_name }}.gpg_armored | gpg --dearmor > /usr/share/keyrings/{{ item.key_name }}.gpg"
+        creates: "/usr/share/keyrings/{{ item.key_name }}.gpg"
+      loop: "{{ armored }}"
+
+    - name: Add repository
+      apt_repository:
+        repo: "{{ item.repo }}"
+        state: present
+      loop: "{{ armored }}"
+
+    - name: Install from external repositories
+      apt:
+        name: "{{ item.pkg }}"
+        state: present
+        update_cache: true
+      loop: "{{ armored }}"
+
     # UNARMORED
     - name: Download repo key
       get_url:
