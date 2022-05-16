@@ -18,3 +18,5 @@
 	la = !git l --all
 	r = !git l -20
 	tree = log --graph --oneline --decorate --branches --all
+[core]
+	excludesfile = /home/hff/.gitignore
