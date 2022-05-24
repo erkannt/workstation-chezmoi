@@ -140,3 +140,4 @@ export EDITOR="vim"
 export VISUAL="vim"
 
 complete -C /usr/local/bin/mc mc
+. "$HOME/.cargo/env"
