@@ -24,3 +24,5 @@
         - iftop
         - python3-venv
         - inkscape
+        - rclone
+        - cifs-utils
