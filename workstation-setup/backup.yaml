@@ -1,0 +1,11 @@
+- name: Setup periodic backups
+  hosts: localhost
+  become: true
+
+  tasks:
+    - name: daily cron to backup to pongo
+      cron:
+        name: backup hff home to pongo
+        job: backup && curl https://hc-ping.com/b5d37ac7-1610-40d3-ac0f-025af1219fd7
+        user: hff
+        hour: "9"
