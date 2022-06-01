@@ -9,6 +9,7 @@
         name: "{{ item }}"
         state: present
       loop:
+        - vim
         - git-lfs
         - git-crypt
         - restic
