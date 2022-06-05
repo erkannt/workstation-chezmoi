@@ -27,3 +27,4 @@
         - inkscape
         - rclone
         - cifs-utils
+        - syncthing
