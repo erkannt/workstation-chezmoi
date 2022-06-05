@@ -9,5 +9,6 @@ restic \
 	--password-file /home/hff/.keys/pongo-restic.txt \
 	backup \
 	--exclude=".cache" \
-	/home/hff
+	/home/hff \
+	&& curl https://hc-ping.com/b5d37ac7-1610-40d3-ac0f-025af1219fd7
 
