@@ -32,13 +32,14 @@
     # MINIO
     - name: Check if minio is installed
       stat:
-        path: /usr/local/bin/minio
+        path: /usr/local/bin/mc
       register: minio
 
     - name: Download minio
       get_url:
         url: https://dl.min.io/client/mc/release/linux-amd64/mc
         dest: /tmp/mc
+      when: not minio.stat.exists
 
     - name: Install minio
       copy:
