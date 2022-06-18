@@ -3,6 +3,32 @@
   become: true
 
   tasks:
+    # ELM
+    - name: Check if elm is installed
+      stat:
+        path: /usr/local/bin/elm
+      register: elm
+
+    - name: Download elm
+      get_url:
+        url: "https://github.com/elm/compiler/releases/download/0.19.1/binary-for-linux-64-bit.gz"
+        dest: /tmp/elm.gz
+      when: not elm.stat.exists
+
+    - name: Unarchive elm
+      command:
+        cmd: gunzip /tmp/elm.gz
+        creates: /tmp/elm
+      when: not elm.stat.exists
+
+    - name: Install elm
+      copy:
+        src: /tmp/elm
+        dest: /usr/local/bin/elm
+        remote_src: true
+        mode: a+x
+      when: not elm.stat.exists
+
     # MINIO
     - name: Check if minio is installed
       stat:
