@@ -28,3 +28,4 @@
         - rclone
         - cifs-utils
         - syncthing
+        - silversearcher-ag
