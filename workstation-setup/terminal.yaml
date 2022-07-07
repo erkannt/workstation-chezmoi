@@ -3,7 +3,7 @@
   become: true
 
   tasks:
-    - name: st build deps
+    - name: st build and font deps
       apt:
         name: "{{ item }}"
         state: present
@@ -11,6 +11,7 @@
         - fontconfig
         - libx11-dev
         - libxft-dev
+        - unifont
 
     - name: Get st source
       git:
