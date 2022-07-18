@@ -3,6 +3,15 @@
   become: true
 
   tasks:
+    - name: Install zsh
+      apt:
+        name: zsh
+        state: present
+
+    - name: Set zsh as default shell
+      command:
+        cmd: usermod --shell /usr/bin/zsh hff
+
     - name: st build and font deps
       apt:
         name: "{{ item }}"
@@ -23,3 +32,4 @@
       make:
         chdir: /tmp/st
         target: install
+
