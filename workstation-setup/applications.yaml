@@ -9,6 +9,9 @@
         name: "{{ item }}"
         state: present
       loop:
+        - tesseract-ocr
+        - libtesseract-dev
+        - tesseract-ocr-eng
         - golang
         - vim
         - git-lfs
