@@ -11,8 +11,5 @@ restic \
 	--host desk \
 	--target / \
 	--exclude="/home/hff/.mozilla" \
-	--exclude="/home/hff/rknt-public" \
-	--exclude="/home/hff/Sync" \
-	--exclude="/home/hff/.bin" \
 	restore latest
 
