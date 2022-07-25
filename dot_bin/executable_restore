@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+source /home/hff/.keys/pongo-minio-restic-service-account.env
+
+restic \
+	--repo s3:http://pongo:9000/hff-restic \
+	--password-file /home/hff/.keys/pongo-restic.txt \
+	--path /home/hff \
+	--host desk \
+	--target / \
+	--exclude="/home/hff/.mozilla" \
+	--exclude="/home/hff/rknt-public" \
+	--exclude="/home/hff/Sync" \
+	--exclude="/home/hff/.bin" \
+	restore latest
+

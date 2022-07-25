@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+source /home/hff/.keys/pongo-minio-restic-service-account.env
+
+restic \
+	--repo s3:http://pongo:9000/hff-restic \
+	--password-file /home/hff/.keys/pongo-restic.txt \
+	check
+
