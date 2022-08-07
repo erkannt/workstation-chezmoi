@@ -10,8 +10,12 @@
       loop:
         - bluez
 
-    - name: allow hff to use bluetooth
+    - name: make sure hff is added to certain groups
       user:
         name: hff
-        groups: bluetooth
+        groups: "{{ item }}"
         append: yes
+      loop:
+        - bluetooth
+        - users
+        - docker
