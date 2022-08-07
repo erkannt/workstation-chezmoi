@@ -4,7 +4,7 @@
 
   tasks:
     - name: Install zsh
-      apt:
+      xbps:
         name: zsh
         state: present
 
@@ -13,14 +13,16 @@
         cmd: usermod --shell /usr/bin/zsh hff
 
     - name: st build and font deps
-      apt:
+      xbps:
         name: "{{ item }}"
         state: present
       loop:
+        - make
+        - pkg-config
         - fontconfig
-        - libx11-dev
-        - libxft-dev
-        - unifont
+        - libX11-devel
+        - libXft-devel
+        - font-unifont-bdf
 
     - name: Get st source
       git:

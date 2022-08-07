@@ -1,9 +1,0 @@
-- name: Upgrade packages managed with apt
-  hosts: localhost
-  become: true
-
-  tasks:
-    - name: "apt update and dist-upgrade"
-      apt:
-        update_cache: true
-        upgrade: dist

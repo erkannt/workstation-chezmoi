@@ -5,34 +5,44 @@
   tasks:
     # REGULAR
     - name: Install from regular repositories
-      apt:
+      xbps:
         name: "{{ item }}"
         state: present
       loop:
-        - tesseract-ocr
-        - libtesseract-dev
-        - tesseract-ocr-eng
-        - golang
+        - xtools
+        - make
         - vim
-        - git-lfs
-        - git-crypt
         - restic
-        - age
-        - jq
         - tmux
         - zsh
+
         - tree
-        - pavucontrol
-        - chromium-browser
+        - jq
         - htop
         - btop
         - iftop
-        - python3-venv
-        - inkscape
         - rclone
-        - cifs-utils
-        - syncthing
-        - silversearcher-ag
+        - xinput  # for mouse key reassignment
+        - the_silver_searcher
         - ffmpeg
-        - vlc
+
+        - vscode
+        - docker
+        - docker-compose
+        - go
+        - git-lfs
+        - git-crypt
         - gcc
+        - github-cli
+        - kubectl
+        - kubernetes-helm
+
+        - pavucontrol
+        - chromium
+        - inkscape
+        - vlc
+        - Signal-Desktop
+
+        - syncthing
+        - tesseract-ocr
+        - cifs-utils

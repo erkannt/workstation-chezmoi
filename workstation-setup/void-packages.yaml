@@ -1,0 +1,47 @@
+- name: "Install from void packages src"
+  hosts: localhost
+  become: true
+
+  vars:
+    - packages:
+      - slack-desktop
+      - zoom
+      - 1password
+      - steam
+      - spotify
+
+  tasks:
+    - name: get source repo
+      git:
+        repo: https://github.com/void-linux/void-packages.git
+        dest: /home/hff/void-packages
+        depth: 1
+
+    - name: allow restricted packages
+      copy:
+        dest: /home/hff/void-packages/etc/conf
+        content: |
+          XBPS_ALLOW_RESTRICTED=yes
+
+    - name: bootstrap
+      become: yes
+      become_user: hff
+      command:
+        cmd: ./xbps-src binary-bootstrap
+        chdir: /home/hff/void-packages
+
+    - name: build
+      become: yes
+      become_user: hff
+      command:
+        cmd: "./xbps-src pkg {{ item }}"
+        chdir: /home/hff/void-packages
+        creates: "/home/hff/void-packages/hostdir/binpkgs/**/{{ item }}*"
+      loop: "{{ packages }}"
+
+    - name: install
+      command:
+        cmd: "xi -y {{ item }}"
+        chdir: /home/hff/void-packages
+      loop: "{{ packages }}"
+

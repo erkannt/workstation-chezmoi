@@ -1,15 +1,17 @@
-- name: "Configure System"
+- name: "System related stuff"
   hosts: localhost
   become: true
 
   tasks:
-    - name: "Disable packagekitd so that it stops interfering"
-      service:
-        name: packagekit
-        enabled: false
-        state: stopped
+    - name: Install packages
+      xbps:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - bluez
 
-    - name: Remove system76-scheduler as it correlates with system crashing
-      apt:
-        name: system76-scheduler
-        state: absent
+    - name: allow hff to use bluetooth
+      user:
+        name: hff
+        groups: bluetooth
+        append: yes

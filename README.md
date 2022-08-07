@@ -1,9 +1,10 @@
 # Restore workstation
 
+1. Upgrade system
+  - `xbps-install -Su`
 1. Install chezmoi/ansible restore requirements
   - add lastpass to firefox and log in
-  - `apt install git ansible zsh`
-  - `sh -c "$(curl -fsLS https://chezmoi.io/get)"`
+  - `xbps-install git ansible zsh vim chezmoi`
 1. Chezmoi setup
   - `chezmoi init erkannt/workstation-chezmoi`
   - `chezmoi apply`

@@ -4,13 +4,14 @@
 
   tasks:
     - name: dwm build dependencies
-      apt:
+      xbps:
         name: "{{ item }}"
         state: present
       loop:
-        - build-essential
-        - libx11-dev
-        - libxinerama-dev
+        - make
+        - pkg-config
+        - libX11-devel
+        - libXinerama-devel
         - sharutils
 
     - name: Get dwm source
@@ -36,7 +37,7 @@
         target: install
 
     - name: Install related tools
-      apt:
+      xbps:
         name: "{{ item }}"
         state: present
       loop:
