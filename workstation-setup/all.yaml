@@ -1,5 +1,6 @@
 - import_playbook: applications.yaml
-- import_playbook: from-external-repos.yaml
+- import_playbook: void-packages.yaml
+- import_playbook: system.yaml
 - import_playbook: node.yaml
 - import_playbook: aws-cli.yaml
 - import_playbook: binary-releases.yaml

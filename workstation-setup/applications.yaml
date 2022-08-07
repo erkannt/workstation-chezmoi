@@ -25,6 +25,7 @@
         - xinput  # for mouse key reassignment
         - the_silver_searcher
         - ffmpeg
+        - unzip
 
         - vscode
         - docker
@@ -36,6 +37,7 @@
         - github-cli
         - kubectl
         - kubernetes-helm
+        - rust
 
         - pavucontrol
         - chromium
