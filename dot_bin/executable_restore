@@ -11,5 +11,12 @@ restic \
 	--host desk \
 	--target / \
 	--exclude="/home/hff/.mozilla" \
+	--exclude="/home/hff/.bin" \
+	--exclude="/home/hff/.cargo" \
+	--exclude="/home/hff/.keys" \
+	--exclude="/home/hff/.kube" \
+	--exclude="/home/hff/.ssh" \
+	--exclude="/home/hff/workstation-setup" \
+	--exclude="/home/hff/.local/share/chezmoi" \
 	restore latest
 
