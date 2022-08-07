@@ -37,7 +37,7 @@
         - github-cli
         - kubectl
         - kubernetes-helm
-        - rust
+        - rustup
 
         - pavucontrol
         - chromium
