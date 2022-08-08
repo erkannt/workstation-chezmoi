@@ -26,6 +26,7 @@
         - the_silver_searcher
         - ffmpeg
         - unzip
+        - wget
 
         - vscode
         - docker
