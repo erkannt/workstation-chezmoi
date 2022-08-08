@@ -44,6 +44,7 @@
         - rofi
         - feh
         - dunst
+        - xsetroot # needed by sb
 
     - name: Get sb (dwm menu bar thingo)
       git:
@@ -51,7 +52,7 @@
         version: "1.5.0"
         dest: /tmp/sb
 
-    - name: Make dwm accesible from gdm and set launch script
+    - name: Install sb
       make:
         chdir: /tmp/sb
         target: install
