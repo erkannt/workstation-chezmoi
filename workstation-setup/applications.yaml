@@ -3,6 +3,17 @@
   become: true
 
   tasks:
+    # Firefox
+    - name: remove Firefox Extended Support Release
+      xbps:
+        name: firefox-esr
+        state: absent
+
+    - name: use latest Firefox
+      xbps:
+        name: firefox
+        state: present
+
     # REGULAR
     - name: Install from regular repositories
       xbps:
