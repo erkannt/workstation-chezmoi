@@ -67,5 +67,8 @@ export PATH=$PATH:$HOME/.bin
 # RUST
 source $HOME/.cargo/env
 
+# vs code launch
+alias code='/usr/local/bin/VSCode-linux-x64/code . > /dev/null 2>&1 &'
+
 autoload -U +X bashcompinit && bashcompinit
 complete -o nospace -C /usr/local/bin/mc mc
