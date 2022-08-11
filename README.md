@@ -21,4 +21,7 @@
      - slack
      - chromium
      - firefox sync
+   - Install from tar:
+     - vs code (to /usr/local/bin/VSCode-linux-x64)
+     - gcloud (to ~/.bin/google-cloud-sdk)
 
