@@ -57,8 +57,11 @@
         - vlc
         - Signal-Desktop
         - thunar-archive-plugin
+        - file-roller
+        - eog
 
         - syncthing
         - tesseract-ocr
         - cifs-utils
         - flatpak
+
