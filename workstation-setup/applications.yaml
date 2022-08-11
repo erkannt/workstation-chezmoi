@@ -49,6 +49,7 @@
         - kubectl
         - kubernetes-helm
         - rustup
+        - lazygit
 
         - pavucontrol
         - chromium
