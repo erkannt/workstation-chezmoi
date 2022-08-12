@@ -65,4 +65,5 @@
         - cifs-utils
         - ntfs-3g
         - flatpak
+        - rsync
 
