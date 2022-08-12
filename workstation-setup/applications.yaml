@@ -63,5 +63,6 @@
         - syncthing
         - tesseract-ocr
         - cifs-utils
+        - ntfs-3g
         - flatpak
 
