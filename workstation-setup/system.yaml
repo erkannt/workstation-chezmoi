@@ -9,6 +9,21 @@
         state: present
       loop:
         - bluez
+        - cups
+        - cups-filters
+        - system-config-printer
+        - net-tools
+        - avahi
+        - nss-mdns
+
+    - name: Enable services
+      runit:
+        name: "{{ item }}"
+        state: started
+        enabled: yes
+      loop:
+        - cupsd
+        - avahi-daemon
 
     - name: make sure hff is added to certain groups
       user:
@@ -19,3 +34,5 @@
         - bluetooth
         - users
         - docker
+        - lp
+        - lpadmin
