@@ -59,6 +59,8 @@
         - thunar-archive-plugin
         - file-roller
         - eog
+        - cura
+        - PrusaSlicer
 
         - syncthing
         - tesseract-ocr
