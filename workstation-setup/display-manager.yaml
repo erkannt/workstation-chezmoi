@@ -12,4 +12,5 @@
         - make
         - pam-devel
         - libxcb
+        - linux-vt-setcolors
 
