@@ -14,3 +14,64 @@
         - libxcb
         - linux-vt-setcolors
 
+    - name: Get ly source
+      git:
+        repo: "https://github.com/erkannt/ly.git"
+        version: "master"
+        dest: /tmp/ly
+
+    - name: Install ly
+      make:
+        chdir: /tmp/ly
+        target: install
+
+    - name: Install ly service
+      make:
+        chdir: /tmp/ly
+        target: installrunit
+
+    - name: tweak service to match colors to nord theme
+      lineinfile:
+        path: /etc/sv/ly/run
+        regexp: '^setcolors'
+        insertbefore: '^exec setsid'
+        line: 'setcolors /home/hff/.vtt-colors'
+
+    - name: set ly config
+      lineinfile:
+        path: /etc/ly/config.ini
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+      loop:
+        - { regexp: 'animate = ', line: 'animate = true' }
+        - { regexp: 'animation = ', line: 'animate = 1' }
+        - { regexp: 'blank_password = ', line: 'blank_password = true' }
+        - { regexp: 'hide_f1_commands = ', line: 'hide_f1_commands = true' }
+        - { regexp: 'term_reset_cmd = ', line: 'term_reset_cmd = /usr/bin/tput reset; setcolors -c /dev/tty2 /home/hff/.vtt-colors' }
+
+    - name: improve tty font choice
+      lineinfile:
+        path: /etc/rc.conf
+        regexp: 'FONT='
+        line: FONT="Mik"
+
+    - name: enable ly
+      runit:
+        name: ly
+        enabled: yes
+        state: started
+
+    - name: disable existing DM and tty2
+      runit:
+        name: "{{ item }}"
+        enabled: no
+        state: stopped
+      loop:
+        - lxdm
+        - agetty-tty2
+
+    - name: install slock
+      xbps:
+        name: slock
+        state: present
+
