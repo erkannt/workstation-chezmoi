@@ -1,0 +1,15 @@
+- name: Install display manager
+  hosts: localhost
+  become: true
+
+  tasks:
+    - name: ly build dependencies
+      xbps:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - gcc
+        - make
+        - pam-devel
+        - libxcb
+
