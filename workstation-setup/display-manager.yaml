@@ -44,10 +44,11 @@
         line: "{{ item.line }}"
       loop:
         - { regexp: 'animate = ', line: 'animate = true' }
-        - { regexp: 'animation = ', line: 'animate = 1' }
+        - { regexp: 'animation = ', line: 'animation = 1' }
         - { regexp: 'blank_password = ', line: 'blank_password = true' }
         - { regexp: 'hide_f1_commands = ', line: 'hide_f1_commands = true' }
         - { regexp: 'term_reset_cmd = ', line: 'term_reset_cmd = /usr/bin/tput reset; setcolors -c /dev/tty2 /home/hff/.vtt-colors' }
+        - { regexp: 'shutdown_cmd = ', line: 'shutdown_cmd = shutdown -h now' }
 
     - name: improve tty font choice
       lineinfile:
