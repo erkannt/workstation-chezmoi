@@ -62,6 +62,7 @@
         - cura
         - PrusaSlicer
         - calibre
+        - libu2f-server  # for webauthn with yubikey to work
 
         - syncthing
         - tesseract-ocr
