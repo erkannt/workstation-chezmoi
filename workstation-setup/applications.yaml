@@ -37,6 +37,7 @@
         - ffmpeg
         - unzip
         - wget
+        - bat
 
         - vscode
         - docker
