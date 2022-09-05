@@ -51,6 +51,10 @@
         - kubernetes-helm
         - rustup
         - lazygit
+        - minicom
+        - gdb
+        - eudev-libudev-devel # for cargo embed
+        - libusb-compat-devel # for cargo embed
 
         - pavucontrol
         - chromium
