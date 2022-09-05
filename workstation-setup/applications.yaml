@@ -55,6 +55,8 @@
         - gdb
         - eudev-libudev-devel # for cargo embed
         - libusb-compat-devel # for cargo embed
+        - cross-arm-none-eabi
+        - cross-arm-none-eabi-gdb
 
         - pavucontrol
         - chromium
