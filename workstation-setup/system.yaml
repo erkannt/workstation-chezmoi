@@ -33,8 +33,10 @@
         groups: "{{ item }}"
         append: yes
       loop:
+        - wheel
         - bluetooth
         - users
         - docker
         - lp
         - lpadmin
+        - dialout
