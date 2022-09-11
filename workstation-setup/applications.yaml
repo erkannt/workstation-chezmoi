@@ -71,6 +71,7 @@
         - calibre
         - libu2f-server  # for webauthn with yubikey to work
         - blender
+        - audacity
 
         - syncthing
         - tesseract-ocr
