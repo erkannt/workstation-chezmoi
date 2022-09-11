@@ -33,6 +33,9 @@
         groups: "{{ item }}"
         append: yes
       loop:
+        - audio
+        - video
+        - plugdev
         - wheel
         - bluetooth
         - users
