@@ -45,6 +45,7 @@
         - feh
         - dunst
         - xsetroot # needed by sb
+        - unclutter-xfixes
 
     - name: Get sb (dwm menu bar thingo)
       git:
