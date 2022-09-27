@@ -18,6 +18,7 @@
         repo: https://github.com/void-linux/void-packages.git
         dest: /home/hff/void-packages
         depth: 1
+        update: no
 
     - name: allow restricted packages
       copy:

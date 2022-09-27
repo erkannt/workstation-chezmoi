@@ -25,6 +25,7 @@
       loop:
         - cupsd
         - avahi-daemon
+        - bluetoothd
 
     - name: make sure hff is added to certain groups
       user:
