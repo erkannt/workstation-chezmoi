@@ -17,6 +17,7 @@ restic \
 	--exclude="/home/hff/.kube" \
 	--exclude="/home/hff/.ssh" \
 	--exclude="/home/hff/workstation-setup" \
+	--exclude="/home/hff/void-packages" \
 	--exclude="/home/hff/.local/share/chezmoi" \
 	restore latest
 
