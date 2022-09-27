@@ -25,4 +25,4 @@
    - Install from tar:
      - VS Code (use `vscode-install` after downloading tar)
      - gcloud (to ~/.bin/google-cloud-sdk)
-
+   - Configure chezmoi repo remote to use SSH
