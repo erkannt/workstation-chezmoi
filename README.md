@@ -16,7 +16,7 @@
 1. Restore data from pongo
    - `restore`
 1. Manual steps
-   - nvidia drivers: `sudo ubuntu-drivers autoinstall`
+   - nvidia drivers: `xi nvidia-470`
    - login to apps:
      - spotify
      - slack
