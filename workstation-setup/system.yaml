@@ -16,7 +16,6 @@
         - avahi
         - nss-mdns
         - void-repo-nonfree
-        - nvdia470
 
     - name: Enable services
       runit:
