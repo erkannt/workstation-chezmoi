@@ -12,6 +12,8 @@
 
   tasks:
     - name: get source repo
+      become: yes
+      become_user: hff
       git:
         repo: https://github.com/void-linux/void-packages.git
         dest: /home/hff/void-packages
