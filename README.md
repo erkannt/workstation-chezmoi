@@ -1,10 +1,11 @@
 # Restore workstation
 
 1. Upgrade system
-   - `xbps-install -Su`
+   - `xbps-install -uy`
+   - `xbps-install -Suy`
 1. Install chezmoi/ansible restore requirements
    - add lastpass to firefox and log in
-   - `xbps-install git ansible zsh vim chezmoi`
+   - `xbps-install git ansible zsh vim age chezmoi`
 1. Chezmoi setup
    - `chezmoi init erkannt/workstation-chezmoi`
    - `chezmoi apply`
@@ -22,6 +23,6 @@
      - chromium
      - firefox sync
    - Install from tar:
-     - vs code (to /usr/local/bin/VSCode-linux-x64)
+     - VS Code (use `vscode-install` after downloading tar)
      - gcloud (to ~/.bin/google-cloud-sdk)
 
