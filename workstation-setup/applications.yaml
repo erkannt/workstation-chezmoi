@@ -82,3 +82,10 @@
         - flatpak
         - rsync
 
+    - name: Enable services associated with applications
+      runit:
+        name: "{{ item }}"
+        state: started
+        enabled: yes
+      loop:
+        - docker
