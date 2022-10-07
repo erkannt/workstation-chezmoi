@@ -74,12 +74,12 @@
         - audacity
         - gnome-screenshot
         - libreoffice
+        - solvespace
 
         - syncthing
         - tesseract-ocr
         - cifs-utils
         - ntfs-3g
-        - flatpak
         - rsync
 
     - name: Enable services associated with applications
