@@ -25,6 +25,8 @@
         - restic
         - tmux
         - zsh
+        - python3
+        - python3-pip
 
         - tree
         - jq
@@ -75,12 +77,21 @@
         - gnome-screenshot
         - libreoffice
         - solvespace
+        - mupdf
 
         - syncthing
         - tesseract-ocr
         - cifs-utils
         - ntfs-3g
         - rsync
+
+        - python3-wheel
+        - python3-distutils-extra
+        - intltool
+
+    - name: Install pdfarranger
+      pip:
+        name: https://github.com/pdfarranger/pdfarranger/zipball/main
 
     - name: Enable services associated with applications
       runit:
