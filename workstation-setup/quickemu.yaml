@@ -13,6 +13,14 @@
         - coreutils
         - grep
         - jq
+        - procps-ng
+        - usbutils
+        - util-linux
+        - sed
+        - socat
+        - swtpm
+        - wget
+        - zsync
         - python3
         - spice-gtk
         - unzip
