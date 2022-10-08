@@ -19,5 +19,6 @@ restic \
 	--exclude="/home/hff/workstation-setup" \
 	--exclude="/home/hff/void-packages" \
 	--exclude="/home/hff/.local/share/chezmoi" \
+	--exclude="/home/hff/quickemu" \
 	restore latest
 
