@@ -42,7 +42,6 @@
         - bat
         - xclip
 
-        - vscode
         - docker
         - docker-compose
         - go
