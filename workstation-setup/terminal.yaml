@@ -23,6 +23,7 @@
         - libX11-devel
         - libXft-devel
         - font-unifont-bdf
+        - liberation-fonts-ttf
 
     - name: Get st source
       git:

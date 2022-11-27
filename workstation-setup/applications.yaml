@@ -60,6 +60,7 @@
         - cross-arm-none-eabi
         - cross-arm-none-eabi-gdb
 
+        - pulseaudio
         - pavucontrol
         - chromium
         - inkscape
