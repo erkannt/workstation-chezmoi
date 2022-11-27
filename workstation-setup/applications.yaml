@@ -80,6 +80,7 @@
         - solvespace
         - mupdf
         - kicad
+        - ImageMagick
 
         - syncthing
         - tesseract-ocr
