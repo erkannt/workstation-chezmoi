@@ -49,8 +49,7 @@
 
     - name: Get sb (dwm menu bar thingo)
       git:
-        repo: "git://git.ckyln.com/sb.git"
-        version: "1.5.0"
+        repo: "https://github.com/erkannt/Backup-of-the-sb-dwm-status-bar.git"
         dest: /tmp/sb
 
     - name: Install sb
