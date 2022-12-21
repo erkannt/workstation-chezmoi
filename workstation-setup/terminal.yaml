@@ -24,6 +24,7 @@
         - libXft-devel
         - font-unifont-bdf
         - liberation-fonts-ttf
+        - font-inconsolata-otf
 
     - name: Get st source
       git:
