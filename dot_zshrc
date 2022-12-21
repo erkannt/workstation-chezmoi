@@ -91,3 +91,10 @@ if [ -f '/home/hff/.bin/google-cloud-sdk/completion.zsh.inc' ]; then . '/home/hf
 # permit overwriting of files with >
 setopt CLOBBER
 
+
+# bun completions
+[ -s "/home/hff/.bun/_bun" ] && source "/home/hff/.bun/_bun"
+
+# bun
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
