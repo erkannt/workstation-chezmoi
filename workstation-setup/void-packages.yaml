@@ -7,7 +7,6 @@
       - slack-desktop
       - zoom
       - 1password
-      - steam
       - spotify
 
   tasks:
