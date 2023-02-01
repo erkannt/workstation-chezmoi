@@ -81,6 +81,9 @@
         - mupdf
         - kicad
         - ImageMagick
+        - fstl
+        - thunderbird
+        - openscad
 
         - syncthing
         - tesseract-ocr
