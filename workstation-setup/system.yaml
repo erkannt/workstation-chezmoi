@@ -16,6 +16,11 @@
         - avahi
         - nss-mdns
         - void-repo-nonfree
+        - noto-fonts-ttf
+        - noto-fonts-ttf-extra
+        - noto-fonts-cjk
+        - noto-fonts-emoji
+        - chrony
 
     - name: Enable services
       runit:
@@ -26,6 +31,7 @@
         - cupsd
         - avahi-daemon
         - bluetoothd
+        - chronyd
 
     - name: make sure hff is added to certain groups
       user:
