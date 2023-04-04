@@ -3,4 +3,3 @@ firefox > /dev/null 2>&1 &
 slack > /dev/null 2>&1 &
 spotify > /dev/null 2>&1 &
 syncthing > /dev/null 2>&1 &
-mouse
