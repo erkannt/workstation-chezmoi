@@ -16,6 +16,14 @@ fi
 alias ll="ls -lha"
 alias mouse="xinput list | grep M570 | cut -f 2 | cut -d '=' -f 2 | xargs -I {} xinput --set-button-map {} 1 2 3 4 5 6 7 8 2 "
 
+# GOOGLE MEET
+alias ml="meetctl launch eLife"
+alias mlj="meetctl launch eLife && meetctl join deb-ccfz-bah"
+alias mj="meetctl join deb-ccfz-bah"
+alias mjj="meetctl join dwi-thof-rdh"
+alias ms="meetctl share"
+alias mn="meetctl new | clip"
+
 # SCIETY
 alias lt="rm -f static/style.css && APP_ORIGIN=foo APP_SECRET=foo PGUSER=foo PGHOST=foo PGPASSWORD=foo PGDATABASE=foo TWITTER_API_KEY=foo TWITTER_API_SECRET_KEY=foo TWITTER_API_BEARER_TOKEN=foo ESLINT=--fix STYLELINT=--fix npx run-p --aggregate-output --continue-on-error --print-label --silent lint:stylelint lint:unused-exports build:css && make unused-sass"
 alias jw="APP_ORIGIN=foo APP_SECRET=foo PGUSER=foo PGHOST=foo PGPASSWORD=foo PGDATABASE=foo TWITTER_API_KEY=foo TWITTER_API_SECRET_KEY=foo TWITTER_API_BEARER_TOKEN=foo bash -c 'npx jest --watch'"
