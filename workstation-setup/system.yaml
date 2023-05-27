@@ -49,3 +49,13 @@
         - lp
         - lpadmin
         - dialout
+        - storage
+
+    - name: ensure members of storage group can mount stuff
+      template:
+        src: ./mount-disks-polkit-rules.j2
+        dest: /etc/polkit-1/rules.d/50-mount-disks.rules
+        owner: root
+        group: root
+        mode: '0644'
+
