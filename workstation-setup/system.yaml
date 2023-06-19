@@ -50,6 +50,7 @@
         - lpadmin
         - dialout
         - storage
+        - kvm
 
     - name: ensure members of storage group can mount stuff
       template:
