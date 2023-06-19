@@ -22,6 +22,8 @@ alias ml="meetctl launch eLife"
 alias mlj="meetctl launch eLife && meetctl join deb-ccfz-bah"
 alias mj="meetctl join deb-ccfz-bah"
 alias mjj="meetctl join dwi-thof-rdh"
+alias mjjj="meetctl join unf-fidk-fud"
+alias mjp="meetctl join ikh-qkvs-skm"
 alias ms="meetctl share"
 alias mn="meetctl new | clip"
 
