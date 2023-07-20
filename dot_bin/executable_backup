@@ -15,6 +15,7 @@ restic \
 	--exclude="virtual-machines" \
 	--exclude=".gvfs" \
 	--exclude="Downloads" \
+	--exclude=".local/share/Trash" \
 	/home/hff \
 	&& curl https://hc-ping.com/b5d37ac7-1610-40d3-ac0f-025af1219fd7
 
