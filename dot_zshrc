@@ -118,3 +118,7 @@ export PATH="$BUN_INSTALL/bin:$PATH"
 
 # quickemu
 export PATH="$HOME/.bin/quickemu:$PATH"
+
+# plattformio
+export PATH="$HOME/.platformio/penv/bin:$PATH"
+
