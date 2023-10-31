@@ -17,7 +17,7 @@
         repo: https://github.com/void-linux/void-packages.git
         dest: /home/hff/void-packages
         depth: 1
-        update: no
+        update: yes
 
     - name: allow restricted packages
       copy:
@@ -38,7 +38,6 @@
       command:
         cmd: "./xbps-src pkg {{ item }}"
         chdir: /home/hff/void-packages
-        creates: "/home/hff/void-packages/hostdir/binpkgs/**/{{ item }}*"
       loop: "{{ packages }}"
 
     - name: install
