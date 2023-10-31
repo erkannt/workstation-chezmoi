@@ -123,6 +123,6 @@ export PATH="$HOME/.bin/quickemu:$PATH"
 export PATH="$HOME/.platformio/penv/bin:$PATH"
 
 # Anker Cam
-alias cam='cameractrls.py -c zoom_absolute=200 && cameractrls.py -c exposure_time_absolute=28'
+alias cam='cameractrls.py -c zoom_absolute=230 && cameractrls.py -c auto_exposure=manual_mode && cameractrls.py -c exposure_time_absolute=28'
 alias came='f() {cameractrls.py -c exposure_time_absolute=$1}; f'
 
