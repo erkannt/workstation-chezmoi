@@ -41,6 +41,8 @@
         - wget
         - bat
         - xclip
+        - at
+        - mise
 
         - docker
         - docker-compose
@@ -84,6 +86,7 @@
         - fstl
         - thunderbird
         - openscad
+        - filezilla
 
         - syncthing
         - tesseract-ocr
