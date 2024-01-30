@@ -1,0 +1,3 @@
+#/bin/sh
+
+echo "paplay ~/Desktop/KSP_linux/GameData/Squad/Alarms/Sounds/OldHorn.wav; notify-send -t 0 -u critical 'ALARM'" | at $1
