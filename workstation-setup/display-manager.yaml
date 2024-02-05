@@ -19,6 +19,7 @@
         repo: "https://github.com/erkannt/ly.git"
         version: "master"
         dest: /tmp/ly
+        accept_hostkey: True
 
     - name: Install ly
       make:
@@ -69,6 +70,7 @@
         state: stopped
       loop:
         - lxdm
+        - lightdm
         - agetty-tty2
 
     - name: install slock
