@@ -6,7 +6,6 @@
     - packages:
       - slack-desktop
       - zoom
-      - 1password
       - spotify
 
   tasks:

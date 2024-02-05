@@ -16,91 +16,89 @@
 
     - name: Install from regular repositories
       xbps:
-        name: "{{ item }}"
         state: present
-      loop:
-        - xtools
-        - make
-        - vim
-        - restic
-        - tmux
-        - zsh
-        - python3
-        - python3-pip
+        name:
+          - xtools
+          - make
+          - vim
+          - restic
+          - tmux
+          - zsh
+          - python3
+          - python3-pip
 
-        - tree
-        - jq
-        - htop
-        - btop
-        - iftop
-        - rclone
-        - xinput  # for mouse key reassignment
-        - the_silver_searcher
-        - ffmpeg
-        - unzip
-        - wget
-        - bat
-        - xclip
-        - at
-        - mise
+          - tree
+          - jq
+          - htop
+          - btop
+          - iftop
+          - rclone
+          - xinput  # for mouse key reassignment
+          - the_silver_searcher
+          - ffmpeg
+          - unzip
+          - wget
+          - bat
+          - xclip
+          - at
+          - fd
+          - mise
 
-        - docker
-        - docker-compose
-        - go
-        - git-lfs
-        - git-crypt
-        - gcc
-        - github-cli
-        - kubectl
-        - kubernetes-helm
-        - rustup
-        - lazygit
-        - minicom
-        - gdb
-        - eudev-libudev-devel # for cargo embed
-        - libusb-compat-devel # for cargo embed
-        - cross-arm-none-eabi
-        - cross-arm-none-eabi-gdb
+          - docker
+          - docker-compose
+          - go
+          - git-lfs
+          - git-crypt
+          - gcc
+          - github-cli
+          - kubectl
+          - kubernetes-helm
+          - rustup
+          - lazygit
+          - minicom
+          - gdb
+          - eudev-libudev-devel # for cargo embed
+          - libusb-compat-devel # for cargo embed
+          - cross-arm-none-eabi
+          - cross-arm-none-eabi-gdb
 
-        - pulseaudio
-        - pavucontrol
-        - chromium
-        - inkscape
-        - vlc
-        - Signal-Desktop
-        - thunar-archive-plugin
-        - file-roller
-        - eog
-        - cura
-        - PrusaSlicer
-        - calibre
-        - libu2f-server  # for webauthn with yubikey to work
-        - blender
-        - audacity
-        - gnome-screenshot
-        - libreoffice
-        - solvespace
-        - mupdf
-        - kicad
-        - ImageMagick
-        - fstl
-        - thunderbird
-        - openscad
-        - filezilla
+          - pulseaudio
+          - pavucontrol
+          - chromium
+          - inkscape
+          - vlc
+          - Signal-Desktop
+          - thunar-archive-plugin
+          - file-roller
+          - eog
+          - cura
+          - PrusaSlicer
+          - calibre
+          - libu2f-server  # for webauthn with yubikey to work
+          - blender
+          - audacity
+          - gnome-screenshot
+          - libreoffice
+          - solvespace
+          - mupdf
+          - kicad
+          - ImageMagick
+          - fstl
+          - thunderbird
+          - openscad
+          - filezilla
+          - pdfarranger
 
-        - syncthing
-        - tesseract-ocr
-        - cifs-utils
-        - ntfs-3g
-        - rsync
+          - syncthing
+          - tesseract-ocr
+          - cifs-utils
+          - ntfs-3g
+          - rsync
 
-        - python3-wheel
-        - python3-distutils-extra
-        - intltool
+          - python3-wheel
+          - python3-distutils-extra
+          - intltool
 
-    - name: Install pdfarranger
-      pip:
-        name: https://github.com/pdfarranger/pdfarranger/zipball/main
 
     - name: Enable services associated with applications
       runit:
@@ -109,3 +107,4 @@
         enabled: yes
       loop:
         - docker
+        - at
