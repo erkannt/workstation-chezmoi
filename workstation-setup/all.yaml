@@ -2,7 +2,6 @@
 - import_playbook: void-packages.yaml
 - import_playbook: system.yaml
 - import_playbook: rust.yaml
-- import_playbook: node.yaml
 - import_playbook: aws-cli.yaml
 - import_playbook: binary-releases.yaml
 - import_playbook: terminal.yaml
