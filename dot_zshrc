@@ -145,6 +145,7 @@ if [ -f '/home/hff/Downloads/google-cloud-sdk/completion.zsh.inc' ]; then . '/ho
 # rebind and configure zsh-z
 alias j=z
 zstyle ':completion:*' menu select
+export ZSHZ_TILDE=1
 
 # History substring search
 bindkey '^[[A' history-substring-search-up
