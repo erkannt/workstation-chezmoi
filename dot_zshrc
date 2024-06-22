@@ -151,5 +151,8 @@ export ZSHZ_TILDE=1
 bindkey '^[[A' history-substring-search-up
 bindkey '^[[B' history-substring-search-down
 
+# pure prompt styling
+zstyle ':prompt:pure:prompt:success' color green
+zstyle ':prompt:pure:prompt:continuation' color magenta
 
 
