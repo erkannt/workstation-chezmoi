@@ -1,5 +1,6 @@
 sindresorhus/pure
 agkozak/zsh-z
+belak/zsh-utils path:completion
 zsh-users/zsh-completions
 sorin-ionescu/prezto path:modules/history
 zsh-users/zsh-history-substring-search

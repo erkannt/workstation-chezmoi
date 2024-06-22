@@ -154,5 +154,9 @@ bindkey '^[[B' history-substring-search-down
 # pure prompt styling
 zstyle ':prompt:pure:prompt:success' color green
 zstyle ':prompt:pure:prompt:continuation' color magenta
+zstyle ':prompt:pure:git:dirty' color yellow
 
+# Makefile completions
+zstyle ':completion:*:make:*:targets' call-command true
+zstyle ':completion:*:*:make:*' tag-order 'targets' 
 
