@@ -134,7 +134,7 @@ eval "$(mise activate zsh)"
 alias awsume="source awsume"
 
 #Kill all containers
-alias dkill="docker ps -q | xargs -n 1 docker kill"
+alias dkill="docker ps -q | xargs --no-run-if-empty -n 1 docker kill"
 
 # rebind and configure zsh-z
 alias j=z
