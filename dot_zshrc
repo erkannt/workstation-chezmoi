@@ -163,3 +163,6 @@ if [ -f '/home/hff/.local/bin/google-cloud-sdk/completion.zsh.inc' ]; then . '/h
 
 # Turso
 export PATH="/home/hff/.turso:$PATH"
+
+autoload -Uz compinit
+fpath+=~/.zfunc
