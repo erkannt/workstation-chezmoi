@@ -161,6 +161,12 @@ zstyle ':prompt:pure:git:dirty' color yellow
 # Makefile completions
 zstyle ':completion:*:*:make:*' tag-order 'targets' 
 
+# Case insensitive completion from both ends
+zstyle ':completion:*' matcher-list '' \
+  'm:{a-z\-}={A-Z\_}' \
+  'r:[^[:alpha:]]||[[:alpha:]]=** r:|=* m:{a-z\-}={A-Z\_}' \
+  'r:|?=** m:{a-z\-}={A-Z\_}'
+
 
 
 # The next line updates PATH for the Google Cloud SDK.
