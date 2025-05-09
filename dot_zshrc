@@ -17,6 +17,10 @@ setopt extended_glob
   source ${ZDOTDIR:-~}/.antidote/antidote.zsh
   antidote load
 
+export LANG=en_US.utf8
+
+#export XDG_RUNTIME_DIR=/home/hff/.xdg_runtime
+
 #####################
 # TOOLS AND AlIASES #
 #####################
