@@ -1,3 +1,15 @@
-#/bin/sh
+#!/usr/bin/env bash
 
-echo "paplay ~/Desktop/KSP_linux/GameData/Squad/Alarms/Sounds/OldHorn.wav; notify-send -t 0 -u critical 'ALARM'" | at $1
+set -euo pipefail
+
+subtract_three_minutes() {
+	local time=$1
+	local hours=${time:0:2}
+	local minutes=${time:2:2}
+
+	local total_minutes=$(echo "${hours} * 60 + ${minutes} - 3" | bc)
+	# Format back to HHMM
+	printf "%02d%02d" $(echo "${total_minutes} / 60" | bc) $(echo "${total_minutes} % 60" | bc)
+}
+
+echo "paplay ~/Desktop/KSP_linux/GameData/Squad/Alarms/Sounds/ComputerTriad.wav; sleep 180; paplay ~/Desktop/KSP_linux/GameData/Squad/Alarms/Sounds/ClockTower.wav; notify-send -u critical 'ALARM'" | at $(subtract_three_minutes $1)
