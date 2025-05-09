@@ -29,6 +29,7 @@ export LANG=en_US.utf8
 alias ll="ls -lha"
 alias mouse="xinput list | grep M570 | cut -f 2 | cut -d '=' -f 2 | xargs -I {} xinput --set-button-map {} 1 2 3 4 5 6 7 8 2 "
 alias mp="make -j -O"
+alias invertcolours="xcalib -i -a"
 
 # GOOGLE MEET
 alias ml="meetctl launch eLife"
