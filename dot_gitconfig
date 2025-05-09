@@ -19,4 +19,23 @@
 	r = !git l -20
 	tree = log --graph --oneline --decorate --branches --all
 [core]
-	excludesfile = /home/hff/.gitignore
+	excludesfile = ~/.gitignore
+	pager = delta --diff-so-fancy
+
+[includeIf "gitdir:~/work/"]
+	path = ~/work/.gitconfig
+
+[interactive]
+	diffFilter = delta --color-only
+
+[delta]
+	navigate = true  # use n and N to move between diff sections
+	minus-emph-style = reverse red
+	minus-empty-line-marker-style = reverse green
+	plus-emph-style = reverse green
+	plus-empty-line-marker-style = reverse green
+	# dark = true      # or light = true, or omit for auto-detection
+
+[merge]
+	conflictstyle = zdiff3
+
