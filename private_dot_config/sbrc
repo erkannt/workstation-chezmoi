@@ -11,7 +11,8 @@ DELIMITER="​"
 BATTERY=""
 
 # Date function. Default: "%a %d %b %Y %H:%M"
-DATE="KW%V %a %d %b %H:%M"
+#DATE="KW%V %a %d %b %H:%M"
+DATE=""
 
 # Refresh Interval. Default: "1"
 SLEEPTIME=""
@@ -26,5 +27,6 @@ KILLEXISTING="1"
 # To switch from top bar to bottom bar add DELIMITER=";" to the beginning of the
 # last module of the top bar
 bar() {
+	cycle
 	datetime
 }
