@@ -43,6 +43,7 @@
           - at
           - fd
           - mise
+          - clipmenu
 
           - docker
           - docker-compose
