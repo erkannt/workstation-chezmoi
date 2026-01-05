@@ -46,6 +46,17 @@
         - dunst
         - xsetroot # needed by sb
         - unclutter-xfixes
+        - imlib2-devel # needed for patched slock
+
+    - name: Get slock
+      git:
+        repo: "https://github.com/erkannt/my-slock.git"
+        dest: /tmp/slock
+
+    - name: Install slock
+      make:
+        chdir: /tmp/slock
+        target: install
 
     - name: Get sb (dwm menu bar thingo)
       git:
@@ -56,3 +67,4 @@
       make:
         chdir: /tmp/sb
         target: install
+
