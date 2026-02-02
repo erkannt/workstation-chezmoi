@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 
-import ctypes, logging, os.path, getopt, sys, subprocess, select
+import ctypes, ctypes.util, logging, os.path, getopt, sys, subprocess, select, time, math, configparser
 from fcntl import ioctl
 from threading import Thread
+from errno import EIO
 
 ghurl = 'https://github.com/soyersoyer/cameractrls'
-version = 'v0.5.10'
+version = 'v0.6.10'
 
 
 v4ldirs = {
@@ -55,10 +56,96 @@ def get_devices(dirs):
             caps = get_device_capability(device)
             if not(caps.device_caps & V4L2_CAP_VIDEO_CAPTURE):
                 continue
-            devices.append(Device(f'{str(caps.card, "utf-8")} ({resolved})', device, resolved, str(caps.driver)))
+            name = f'{caps.card.decode()} ({resolved})'
+            devices.append(Device(name, device, resolved, str(caps.driver)))
             resolved_devices.append(resolved)
     devices.sort()
     return devices
+
+ptz_hw_executables = [
+    f'{sys.path[0]}/cameraptzspnav.py',
+    f'{sys.path[0]}/cameraptzgame.py',
+    f'{sys.path[0]}/cameraptzmidi.py',
+]
+
+def exec_and_get_lines(params):
+    return subprocess.run(params, capture_output=True).stdout.splitlines()
+
+def get_ptz_hw_controllers(executables):
+    controllers = []
+    for cmd in executables:
+        if not os.access(cmd, os.X_OK):
+            logging.warning(f'{cmd} is not an executable')
+            continue
+        controllers += [
+            PTZHWController(cmd, c.decode())
+            for c in exec_and_get_lines([cmd, '-l'])
+        ]
+    return controllers
+
+class PTZHWControllers():
+    def __init__(self, video_device, toggle_cb, notify_err, notify_end):
+        self.controllers = get_ptz_hw_controllers(ptz_hw_executables)
+        self.video_device = video_device
+        self.toggle_cb = toggle_cb
+        self.notify_err = notify_err
+        self.notify_end = notify_end
+    
+    def get_names(self):
+        return [c.id for c in self.controllers]
+
+    def start(self, i):
+        c = self.controllers[i]
+        if c.is_running():
+            c.terminate()
+        p = c.run(self.video_device)
+        self.toggle_cb(self.check_ptz_open, p, i)
+
+    def stop(self, i):
+        c = self.controllers[i]
+        if c.is_running():
+            c.terminate()
+
+    def set_active(self, i, state):
+        if state:
+            self.start(i)
+        else:
+            self.stop(i)
+
+    def check_ptz_open(self, p, i):
+        # if process returned
+        if p.poll() is not None:
+            (stdout, stderr) = p.communicate()
+            errstr = stderr.decode()
+            sys.stderr.write(errstr)
+            if p.returncode != 0 and p.returncode != -15:
+                self.notify_err(errstr.strip())
+            self.notify_end(i)
+            # False removes the timeout
+            return False
+        return True
+
+    def terminate_all(self):
+        for c in self.controllers:
+            c.terminate()
+
+class PTZHWController():
+    def __init__(self, command, id):
+        self.command = command
+        self.id = id
+        self.process = None
+    
+    def run(self, video_device):
+        self.process = subprocess.Popen([self.command, '-c', self.id, '-d', video_device], stderr=subprocess.PIPE)
+        return self.process
+    
+    def is_running(self):
+        return self.process and self.process.poll() is None
+
+    def terminate(self):
+        if self.process:
+            self.process.terminate()
+
 
 # ioctl
 
@@ -500,6 +587,7 @@ v4l2_ctrl_type = enum
     V4L2_CTRL_TYPE_INTEGER_MENU,
 ) = range(1, 10)
 
+V4L2_CTRL_FLAG_READ_ONLY = 0x0004
 V4L2_CTRL_FLAG_UPDATE = 0x0008
 V4L2_CTRL_FLAG_INACTIVE = 0x0010
 V4L2_CTRL_FLAG_NEXT_CTRL = 0x80000000
@@ -615,6 +703,7 @@ V4L2_CID_DIGITAL_GAIN = V4L2_CID_IMAGE_PROC_CLASS_BASE + 5
 V4L2_CTRL_ZEROERS = [
     V4L2_CID_PAN_SPEED,
     V4L2_CID_TILT_SPEED,
+    V4L2_CID_ZOOM_CONTINUOUS,
 ]
 
 V4L2_CTRL_INFO = {
@@ -883,7 +972,7 @@ def try_xu_control(fd, unit_id, selector):
     try:
        ioctl(fd, UVCIOC_CTRL_QUERY, xu_ctrl_query)
     except Exception as e:
-        logging.info(f'try_xu_control: UVCIOC_CTRL_QUERY (GET_LEN) - Fd: {fd} - Error: {e}')
+        logging.debug(f'try_xu_control: UVCIOC_CTRL_QUERY (GET_LEN) - Fd: {fd} - Error: {e}')
         return False
 
     return True
@@ -906,13 +995,11 @@ def get_length_xu_control(fd, unit_id, selector):
     return length
 
 def query_xu_control(fd, unit_id, selector, query, data):
-    len = get_length_xu_control(fd, unit_id, selector)
-
     xu_ctrl_query = uvc_xu_control_query()
     xu_ctrl_query.unit = unit_id
     xu_ctrl_query.selector = selector
     xu_ctrl_query.query = query
-    xu_ctrl_query.size = len
+    xu_ctrl_query.size = len(data) - 1  # to_buf() ctypes.create_string_buffer() adds + 1 byte
     xu_ctrl_query.data = ctypes.cast(ctypes.pointer(data), ctypes.c_void_p)
 
     try:
@@ -1040,9 +1127,9 @@ def collect_warning(w, ws):
 
 class BaseCtrl:
     def __init__(self, text_id, name, type, value = None, default = None, min = None, max = None, step = None,
-                inactive = False, reopener = False, menu_dd = False, menu = None, tooltip = None,
-                zeroer = False, scale_class = None, kernel_id = None, get_default = None,
-                format_value = None):
+                inactive = False, reopener = False, menu_dd = False, menu = None, tooltip = None, child_tooltip = None,
+                zeroer = False, scale_class = None, kernel_id = None, get_default = None, readonly = False,
+                format_value = None, step_big = None, unrestorable = False):
         self.text_id = text_id
         self.kernel_id = kernel_id
         self.name = name
@@ -1053,20 +1140,26 @@ class BaseCtrl:
         self.max = max
         self.step = step
         self.inactive = inactive
+        self.readonly = readonly
         self.reopener = reopener
         self.menu_dd = menu_dd
         self.menu = menu
         self.tooltip = tooltip
+        self.child_tooltip = child_tooltip
         self.zeroer = zeroer
         self.scale_class = scale_class
         self.get_default = get_default
         self.format_value = format_value
+        self.step_big = step_big
+        self.unrestorable = unrestorable
 
 class BaseCtrlMenu:
-    def __init__(self, text_id, name, value):
+    def __init__(self, text_id, name, value, gui_hidden=False, lp_text_id=None):
         self.text_id = text_id
         self.name = name
         self.value = value
+        self.gui_hidden = gui_hidden
+        self.lp_text_id = lp_text_id
 
 class KiyoCtrl(BaseCtrl):
     def __init__(self, text_id, name, type, tooltip, menu, ):
@@ -1193,6 +1286,37 @@ LOGITECH_PERIPHERAL_PANTILT_RESET_PAN = b'\x01'
 LOGITECH_PERIPHERAL_PANTILT_RESET_TILT = b'\x02'
 LOGITECH_PERIPHERAL_PANTILT_RESET_BOTH = b'\x03'
 
+LOGITECH_PRESET_DEV_MATCH = [
+    '046d:0853', # PTZ Pro
+    '046d:0858', # Group camera
+    '046d:085f', # PTZ Pro 2
+    '046d:0866', # Meetup camera
+    '046d:0881', # Rally camera
+    '046d:0888', # Rally camera
+    '046d:0889', # Rally camera
+]
+
+LOGITECH_PERIPHERAL_PANTILT_PRESET_SEL = 0x02
+LOGITECH_PERIPHERAL_PANTILT_PRESET_LEN = 1
+LOGITECH_PERIPHERAL_PANTILT_PRESET_OFFSET = 0
+
+LOGITECH_PERIPHERAL_PANTILT_PRESET_SAVE_1 = b'\x04'
+LOGITECH_PERIPHERAL_PANTILT_PRESET_SAVE_2 = b'\x05'
+LOGITECH_PERIPHERAL_PANTILT_PRESET_SAVE_3 = b'\x06'
+LOGITECH_PERIPHERAL_PANTILT_PRESET_SAVE_4 = b'\x07'
+LOGITECH_PERIPHERAL_PANTILT_PRESET_SAVE_5 = b'\x08'
+LOGITECH_PERIPHERAL_PANTILT_PRESET_SAVE_6 = b'\x09'
+LOGITECH_PERIPHERAL_PANTILT_PRESET_SAVE_7 = b'\x0a'
+LOGITECH_PERIPHERAL_PANTILT_PRESET_SAVE_8 = b'\x0b'
+LOGITECH_PERIPHERAL_PANTILT_PRESET_GOTO_1 = b'\x0c'
+LOGITECH_PERIPHERAL_PANTILT_PRESET_GOTO_2 = b'\x0d'
+LOGITECH_PERIPHERAL_PANTILT_PRESET_GOTO_3 = b'\x0e'
+LOGITECH_PERIPHERAL_PANTILT_PRESET_GOTO_4 = b'\x0f'
+LOGITECH_PERIPHERAL_PANTILT_PRESET_GOTO_5 = b'\x10'
+LOGITECH_PERIPHERAL_PANTILT_PRESET_GOTO_6 = b'\x11'
+LOGITECH_PERIPHERAL_PANTILT_PRESET_GOTO_7 = b'\x12'
+LOGITECH_PERIPHERAL_PANTILT_PRESET_GOTO_8 = b'\x13'
+
 
 LOGITECH_PERIPHERAL_LED1_SEL = 0x09
 LOGITECH_PERIPHERAL_LED1_LEN = 5
@@ -1244,7 +1368,9 @@ LOGITECH_BRIO_FOV_DEV_MATCH = [
     '046d:085e', # Brio
     '046d:0943', # Brio 500
     '046d:0946', # Brio 501
+    '046d:0919', # Brio 505
     '046d:086b', # Brio 4K Stream Edition
+    '046d:0944', # MX Brio
 ]
 LOGITECH_BRIO_FOV_SEL = 0x05
 LOGITECH_BRIO_FOV_LEN = 1
@@ -1256,8 +1382,8 @@ LOGITECH_BRIO_FOV_90 = 0x00
 
 
 class LogitechCtrl(BaseCtrl):
-    def __init__(self, text_id, name, type, tooltip, unit_id, selector, len, offset, menu = None):
-        super().__init__(text_id, name, type, tooltip=tooltip, menu=menu)
+    def __init__(self, text_id, name, type, tooltip, unit_id, selector, len, offset, menu = None, child_tooltip = None):
+        super().__init__(text_id, name, type, tooltip=tooltip, menu=menu, child_tooltip=child_tooltip)
         self._unit_id = unit_id
         self._selector = selector
         self._len = len
@@ -1319,10 +1445,10 @@ class LogitechCtrls:
                         LOGITECH_PERIPHERAL_PANTILT_REL_LEN,
                         LOGITECH_PERIPHERAL_PANTILT_REL_OFFSET,
                         [
-                            BaseCtrlMenu('-8', '↞', LOGITECH_PERIPHERAL_PANTILT_REL_LEFT8),
-                            BaseCtrlMenu('-1', '←', LOGITECH_PERIPHERAL_PANTILT_REL_LEFT1),
-                            BaseCtrlMenu('1', '→', LOGITECH_PERIPHERAL_PANTILT_REL_RIGHT1),
-                            BaseCtrlMenu('8', '↠', LOGITECH_PERIPHERAL_PANTILT_REL_RIGHT8),
+                            BaseCtrlMenu('-8', '-8', LOGITECH_PERIPHERAL_PANTILT_REL_LEFT8),
+                            BaseCtrlMenu('-1', '-1', LOGITECH_PERIPHERAL_PANTILT_REL_LEFT1),
+                            BaseCtrlMenu('1', '+1', LOGITECH_PERIPHERAL_PANTILT_REL_RIGHT1),
+                            BaseCtrlMenu('8', '+8', LOGITECH_PERIPHERAL_PANTILT_REL_RIGHT8),
                         ],
                     ),
                     LogitechCtrl(
@@ -1335,10 +1461,10 @@ class LogitechCtrls:
                         LOGITECH_PERIPHERAL_PANTILT_REL_LEN,
                         LOGITECH_PERIPHERAL_PANTILT_REL_OFFSET,
                         [
-                            BaseCtrlMenu('-3', '↡', LOGITECH_PERIPHERAL_PANTILT_REL_DOWN3),
-                            BaseCtrlMenu('-1', '↓', LOGITECH_PERIPHERAL_PANTILT_REL_DOWN1),
-                            BaseCtrlMenu('1', '↑', LOGITECH_PERIPHERAL_PANTILT_REL_UP1),
-                            BaseCtrlMenu('3', '↟', LOGITECH_PERIPHERAL_PANTILT_REL_UP3),
+                            BaseCtrlMenu('-3', '-3', LOGITECH_PERIPHERAL_PANTILT_REL_DOWN3),
+                            BaseCtrlMenu('-1', '-1', LOGITECH_PERIPHERAL_PANTILT_REL_DOWN1),
+                            BaseCtrlMenu('1', '+1', LOGITECH_PERIPHERAL_PANTILT_REL_UP1),
+                            BaseCtrlMenu('3', '+3', LOGITECH_PERIPHERAL_PANTILT_REL_UP3),
                         ],
                     ),
                 ])
@@ -1358,6 +1484,39 @@ class LogitechCtrls:
                             BaseCtrlMenu('tilt', 'Tilt', LOGITECH_PERIPHERAL_PANTILT_RESET_TILT),
                             BaseCtrlMenu('both', 'Both', LOGITECH_PERIPHERAL_PANTILT_RESET_BOTH),
                         ],
+                    ),
+                ])
+            if try_xu_control(self.fd, peripheral_unit_id, LOGITECH_PERIPHERAL_PANTILT_PRESET_SEL)\
+                and self.usb_ids in LOGITECH_PRESET_DEV_MATCH:
+                self.ctrls.extend([
+                    LogitechCtrl(
+                        'logitech_pantilt_preset',
+                        'Pan/Tilt, Preset',
+                        'button',
+                        'Pan/Tilt, Preset\nClick goes to the preset\nLong press saves it',
+                        peripheral_unit_id,
+                        LOGITECH_PERIPHERAL_PANTILT_PRESET_SEL,
+                        LOGITECH_PERIPHERAL_PANTILT_PRESET_LEN,
+                        LOGITECH_PERIPHERAL_PANTILT_PRESET_OFFSET,
+                        [
+                            BaseCtrlMenu('goto_1', '1', LOGITECH_PERIPHERAL_PANTILT_PRESET_GOTO_1, lp_text_id='save_1'),
+                            BaseCtrlMenu('goto_2', '2', LOGITECH_PERIPHERAL_PANTILT_PRESET_GOTO_2, lp_text_id='save_2'),
+                            BaseCtrlMenu('goto_3', '3', LOGITECH_PERIPHERAL_PANTILT_PRESET_GOTO_3, lp_text_id='save_3'),
+                            BaseCtrlMenu('goto_4', '4', LOGITECH_PERIPHERAL_PANTILT_PRESET_GOTO_4, lp_text_id='save_4'),
+                            BaseCtrlMenu('goto_5', '5', LOGITECH_PERIPHERAL_PANTILT_PRESET_GOTO_5, lp_text_id='save_5'),
+                            BaseCtrlMenu('goto_6', '6', LOGITECH_PERIPHERAL_PANTILT_PRESET_GOTO_6, lp_text_id='save_6'),
+                            BaseCtrlMenu('goto_7', '7', LOGITECH_PERIPHERAL_PANTILT_PRESET_GOTO_7, lp_text_id='save_7'),
+                            BaseCtrlMenu('goto_8', '8', LOGITECH_PERIPHERAL_PANTILT_PRESET_GOTO_8, lp_text_id='save_8'),
+                            BaseCtrlMenu('save_1', 'Save 1', LOGITECH_PERIPHERAL_PANTILT_PRESET_SAVE_1, gui_hidden=True),
+                            BaseCtrlMenu('save_2', 'Save 2', LOGITECH_PERIPHERAL_PANTILT_PRESET_SAVE_2, gui_hidden=True),
+                            BaseCtrlMenu('save_3', 'Save 3', LOGITECH_PERIPHERAL_PANTILT_PRESET_SAVE_3, gui_hidden=True),
+                            BaseCtrlMenu('save_4', 'Save 4', LOGITECH_PERIPHERAL_PANTILT_PRESET_SAVE_4, gui_hidden=True),
+                            BaseCtrlMenu('save_5', 'Save 5', LOGITECH_PERIPHERAL_PANTILT_PRESET_SAVE_5, gui_hidden=True),
+                            BaseCtrlMenu('save_6', 'Save 6', LOGITECH_PERIPHERAL_PANTILT_PRESET_SAVE_6, gui_hidden=True),
+                            BaseCtrlMenu('save_7', 'Save 7', LOGITECH_PERIPHERAL_PANTILT_PRESET_SAVE_7, gui_hidden=True),
+                            BaseCtrlMenu('save_8', 'Save 8', LOGITECH_PERIPHERAL_PANTILT_PRESET_SAVE_8, gui_hidden=True),                            
+                        ],
+                        child_tooltip='Click to load, long press to save',
                     ),
                 ])
 
@@ -1496,10 +1655,455 @@ class LogitechCtrls:
     def get_ctrls(self):
         return self.ctrls
 
+# Dell UltraSharp WB7022 GUID 23e49ed0-1178-4f31-ae52-d2fb8a8d3b48 in little-endian
+DELL_ULTRASHARP_GUID = b'\xd0\x9e\xe4\x23\x78\x11\x31\x4f\xae\x52\xd2\xfb\x8a\x8d\x3b\x48'
+
+DELL_ULTRASHARP_DEV_MATCH = [
+    '413c:c015',
+]
+
+DELL_ULTRASHARP_SET = 0x01
+DELL_ULTRASHARP_GET = 0x02
+
+DELL_ULTRASHARP_AUTO_FRAMING_OFF = b'\xff\x14\x01\x00\x00\x00\x00\x00'
+DELL_ULTRASHARP_AUTO_FRAMING_ON = b'\xff\x14\x01\x01\x00\x00\x00\x00'
+
+DELL_ULTRASHARP_CAMERA_TRANSITION_OFF = b'\xff\x14\x10\x00\x00\x00\x00\x00'
+DELL_ULTRASHARP_CAMERA_TRANSITION_ON = b'\xff\x14\x10\x01\x00\x00\x00\x00'
+
+DELL_ULTRASHARP_TRACKING_SENSITIVITY_NORMAL = b'\xff\x14\x11\x01\x00\x00\x00\x00'
+DELL_ULTRASHARP_TRACKING_SENSITIVITY_FAST = b'\xff\x14\x11\x02\x00\x00\x00\x00'
+
+DELL_ULTRASHARP_TRACKING_FRAME_SIZE_STANDARD = b'\xff\x14\x12\x01\x00\x00\x00\x00'
+DELL_ULTRASHARP_TRACKING_FRAME_SIZE_NARROW = b'\xff\x14\x12\x02\x00\x00\x00\x00'
+
+DELL_ULTRASHARP_FOV_65 = b'\xff\x10\x01\x41\x00\x00\x00\x00'
+DELL_ULTRASHARP_FOV_78 = b'\xff\x10\x01\x4e\x00\x00\x00\x00'
+DELL_ULTRASHARP_FOV_90 = b'\xff\x10\x01\x5a\x00\x00\x00\x00'
+
+DELL_ULTRASHARP_HDR_OFF = b'\xff\x11\x00\x00\x00\x00\x00\x00'
+DELL_ULTRASHARP_HDR_ON = b'\xff\x11\x01\x00\x00\x00\x00\x00'
+
+class DellUltraSharpCtrl(BaseCtrl):
+    def __init__(self, text_id, name, type, tooltip, menu, ):
+        super().__init__(text_id, name, type, tooltip=tooltip, menu=menu)
+
+class DellUltraSharpCtrls:
+    def __init__(self, device, fd):
+        self.device = device
+        self.fd = fd
+        self.unit_id = find_unit_id_in_sysfs(device, DELL_ULTRASHARP_GUID)
+        self.usb_ids = find_usb_ids_in_sysfs(device)
+        self.get_device_controls()
+
+    def supported(self):
+        return self.unit_id != 0 and self.usb_ids in DELL_ULTRASHARP_DEV_MATCH
+
+    def get_device_controls(self):
+        if not self.supported():
+            self.ctrls = []
+            return
+
+        self.ctrls = [
+            DellUltraSharpCtrl(
+                'dell_ultrasharp_auto_framing',
+                'Auto Framing',
+                'menu',
+                'Intelligent scene analysis and facial tracking to zoom and pan the view when you move',
+                [
+                    BaseCtrlMenu('off', 'Off', DELL_ULTRASHARP_AUTO_FRAMING_OFF),
+                    BaseCtrlMenu('on', 'On', DELL_ULTRASHARP_AUTO_FRAMING_ON),
+                ]
+            ),
+            DellUltraSharpCtrl(
+                'dell_ultrasharp_camera_transition',
+                'Camera Transition',
+                'menu',
+                'It enables a smooth transition by panning and zooming when the camera readjusts your position in the frame',
+                [
+                    BaseCtrlMenu('off', 'Off', DELL_ULTRASHARP_CAMERA_TRANSITION_OFF),
+                    BaseCtrlMenu('on', 'On', DELL_ULTRASHARP_CAMERA_TRANSITION_ON),
+                ]
+            ),
+            DellUltraSharpCtrl(
+                'dell_ultrasharp_tracking_sensitivity',
+                'Tracking Sensitivity',
+                'menu',
+                'Adjust how quickly you\'d like the camera to respond to your movement and readjust your position in the frame',
+                [
+                    BaseCtrlMenu('normal', 'Normal', DELL_ULTRASHARP_TRACKING_SENSITIVITY_NORMAL),
+                    BaseCtrlMenu('fast', 'Fast', DELL_ULTRASHARP_TRACKING_SENSITIVITY_FAST),
+                ]
+            ),
+            DellUltraSharpCtrl(
+                'dell_ultrasharp_tracking_frame_size',
+                'Tracking Frame Size',
+                'menu',
+                'Adjust the frame size',
+                [
+                    BaseCtrlMenu('narrow', 'Narrow', DELL_ULTRASHARP_TRACKING_FRAME_SIZE_NARROW),
+                    BaseCtrlMenu('standard', 'Standard', DELL_ULTRASHARP_TRACKING_FRAME_SIZE_STANDARD),
+                ]
+            ),
+            DellUltraSharpCtrl(
+                'dell_ultrasharp_fov',
+                'FoV',
+                'menu',
+                'Angle selection for the camera\'s field of view',
+                [
+                    BaseCtrlMenu('65', '65°', DELL_ULTRASHARP_FOV_65),
+                    BaseCtrlMenu('78', '78°', DELL_ULTRASHARP_FOV_78),
+                    BaseCtrlMenu('90', '90°', DELL_ULTRASHARP_FOV_90),
+                ]
+            ),
+            DellUltraSharpCtrl(
+                'dell_ultrasharp_hdr',
+                'HDR',
+                'menu',
+                'Enable High Dynamic Range to enhance image quality, particularly in extreme lighting conditions',
+                [
+                    BaseCtrlMenu('off', 'Off', DELL_ULTRASHARP_HDR_OFF),
+                    BaseCtrlMenu('on', 'On', DELL_ULTRASHARP_HDR_ON),
+                ]
+            ),
+        ]
+
+    def setup_ctrls(self, params, errs):
+        if not self.supported():
+            return
+
+        for k, v in params.items():
+            ctrl = find_by_text_id(self.ctrls, k)
+            if ctrl is None:
+                continue
+            menu = find_by_text_id(ctrl.menu, v)
+            if menu is None:
+                collect_warning(f'DellUltraSharpCtrls: can\'t find {v} in {[c.text_id for c in ctrl.menu]}', errs)
+                continue
+            ctrl.value = menu.text_id
+
+            query_xu_control(self.fd, self.unit_id, DELL_ULTRASHARP_SET, UVC_SET_CUR, to_buf(menu.value))
+
+    def get_ctrls(self):
+        return self.ctrls
+
+# AnkerWork C310 GUID 41769ea2-04de-e347-8b2b-f4341aff003b in little endian
+ANKERWORK_GUID = b'\xa2\x9e\x76\x41\xde\x04\x47\xe3\x8b\x2b\xf4\x34\x1a\xff\x00\x3b'
+ANKERWORK_DEV_MATCH = [
+    '291a:3367',
+]
+
+## FOV settings commands
+ANKERWORK_FOV_SELECTOR = 0x10
+ANKERWORK_FOV_LENGTH = 0x7
+
+ANKERWORK_SOLO_FRAME = b'\x02\x01\x5f\x00\x00\x00\x00'
+ANKERWORK_FOV_65 = b'\x00\x01\x5f\x00\x00\x00\x00'
+ANKERWORK_FOV_78 = b'\x00\x01\x4e\x00\x00\x00\x00'
+ANKERWORK_FOV_95 = b'\x00\x01\x41\x00\x00\x00\x00'
+
+## Horizontal flip commands
+# FIXME: Nothing seems to work with this. I'm not really bothered by this.
+ANKERWORK_HOR_SELECTOR = 0x11
+ANKERWORK_HOR_LENGTH = 0x1
+
+ANKERWORK_HOR_FLIP_OFF = 0x00
+ANKERWORK_HOR_FLIP_ON = 0x01
+
+## Face focus commands
+ANKERWORK_FACE_FOCUS_SELECTOR = 0x1b
+ANKERWORK_FACE_FOCUS_LENGTH = 0x1
+
+ANKERWORK_FACE_FOCUS_OFF = 0x00
+ANKERWORK_FACE_FOCUS_ON = 0x01
+
+## Face exposure compensation commands
+ANKERWORK_FACE_EXPOSURE_COMP_SELECTOR = 0xb
+ANKERWORK_FACE_EXPOSURE_COMP_LENGTH = 0x2
+ANKERWORK_FACE_EXPOSURE_OFF = 0x00
+ANKERWORK_FACE_EXPOSURE_ON = 0x01
+
+# Integer between 1 and 25600 as data field, rounded to the nearest 256 number (only the second byte is used, first is
+# just 00 or 01 used as a switch on/off)
+# Setup as values from +6.5EV (25601) to -3.5EV (1)
+# 0EV is 8961. This looks a linear scale then. (2560 * 3.5 = 8960)
+ANKERWORK_FACE_EXPOSURE_COMP_MIN = 0x01
+ANKERWORK_FACE_EXPOSURE_COMP_MAX = 0x64
+
+## HDR selector commands
+# FIXME: This do seems to be the right selector toggled
+#  but nothing on Linux happens. Need more investigation.
+ANKERWORK_HDR_SELECTOR = 0x13
+ANKERWORK_HDR_LENGTH = 0x1
+
+ANKERWORK_HDR_OFF = 0x00
+ANKERWORK_HDR_ON = 0x01
+
+ANKERWORK_EXP_COMPENSATION_SELECTOR = 0x18
+AKKERWORK_EXP_COMPENSATION_LENGTH = 0x9
+
+# TODO: Raw data below
+#   Center position for the exposure point + radius?
+#   80026801 seems to be constant when switching between positions
+#   014006840380026801
+#   018701e70080026801
+#   01ad0a740080026801
+#   013206b00380026801
+#   015a065c0380026801
+#   017006720380026801
+#   016c06760380026801
+
+## Microphone AI Noise Reduction commands
+ANKERWORK_MIC_AI_NOISERED_SELECTOR = 0x1d
+ANKERWORK_MIC_AI_NOISERED_LENGTH = 0x1
+
+ANKERWORK_MIC_AI_NOISERED_OFF = 0x00
+ANKERWORK_MIC_AI_NOISERED_ON = 0x01
+
+## Microphone pickup pattern commands
+ANKERWORK_MIC_PICKUP_MODE_SELECTOR = 0x1f
+ANKERWORK_MIC_PICKUP_MODE_LENGTH = 0x2
+
+ANKERWORK_MIC_PICKUP_360 = 0x0
+ANKERWORK_MIC_PICKUP_90 = 0x5a
+
+class AnkerWorkCtrl(BaseCtrl):
+    def __init__(self, text_id, name, type, tooltip, selector, menu, length, min = None, max = None, default=None):
+        super().__init__(text_id, name, type, tooltip=tooltip, menu=menu, min=min, max=max, default=default)
+        self.selector = selector
+        self.length = length
+
+class AnkerWorkCtrls:
+    def __init__(self, device, fd):
+        self.device = device
+        self.fd = fd
+        self.unit_id = find_unit_id_in_sysfs(device, ANKERWORK_GUID)
+        self.usb_ids = find_usb_ids_in_sysfs(device)
+        self.get_device_controls()
+
+    def supported(self):
+        return self.unit_id != 0 and self.usb_ids in ANKERWORK_DEV_MATCH
+
+    def get_device_controls(self):
+        if not self.supported():
+            self.ctrls = []
+            return
+
+        self.ctrls = [
+            AnkerWorkCtrl(
+                'ankerwork_fov',
+                'Field of View',
+                'menu',
+                'Angle selection for the camera\'s field of view',
+                ANKERWORK_FOV_SELECTOR,
+                [
+                    BaseCtrlMenu('65', '65°', ANKERWORK_FOV_65),
+                    BaseCtrlMenu('78', '78°', ANKERWORK_FOV_78),
+                    BaseCtrlMenu('95', '95°', ANKERWORK_FOV_95),
+                    BaseCtrlMenu('auto', 'Auto', ANKERWORK_SOLO_FRAME),
+                ],
+                ANKERWORK_FOV_LENGTH,
+            ),
+            AnkerWorkCtrl(
+                'ankerwork_face_focus',
+                'Face Focus',
+                'menu',
+                'If the camera should track focusing on faces or not',
+                ANKERWORK_FACE_FOCUS_SELECTOR,
+                [
+                    BaseCtrlMenu('on', 'On', ANKERWORK_FACE_FOCUS_ON),
+                    BaseCtrlMenu('off', 'Off', ANKERWORK_FACE_FOCUS_OFF),
+                ],
+                ANKERWORK_FACE_FOCUS_LENGTH,
+            ),
+            AnkerWorkCtrl(
+                'ankerwork_mic_noisered',
+                'AI Noise Reduction',
+                'menu',
+                'Enable or disable the microphone noise reduction algorithm',
+                ANKERWORK_MIC_AI_NOISERED_SELECTOR,
+                [
+                    BaseCtrlMenu('on', 'On', ANKERWORK_MIC_AI_NOISERED_ON),
+                    BaseCtrlMenu('off', 'Off', ANKERWORK_MIC_AI_NOISERED_OFF),
+                ],
+                ANKERWORK_MIC_AI_NOISERED_LENGTH,
+            ),
+            AnkerWorkCtrl(
+                'ankerwork_mic_pickup',
+                'Microphone Pickup Pattern',
+                'menu',
+                'Set which microphone pickup pattern to use, either 360° or 90°',
+                ANKERWORK_MIC_PICKUP_MODE_SELECTOR,
+                [
+                    BaseCtrlMenu('90', '90°', ANKERWORK_MIC_PICKUP_90),
+                    BaseCtrlMenu('360', '360°', ANKERWORK_MIC_PICKUP_360),
+                ],
+                ANKERWORK_MIC_PICKUP_MODE_LENGTH,
+            ),
+            AnkerWorkCtrl(
+                'ankerwork_hdr',
+                'HDR',
+                'menu',
+                'Enable High Dynamic Range to enhance image quality, particularly in extreme lighting conditions',
+                ANKERWORK_HDR_SELECTOR,
+                [
+                    BaseCtrlMenu('off', 'Off', ANKERWORK_HDR_OFF),
+                    BaseCtrlMenu('on', 'On', ANKERWORK_HDR_ON),
+                ],
+                ANKERWORK_HDR_LENGTH,
+            ),
+            AnkerWorkCtrl(
+                'ankerwork_face_compensation_enable',
+                'Face Compensation Enable',
+                'menu',
+                'Enable face compensation algorithm',
+                ANKERWORK_FACE_EXPOSURE_COMP_SELECTOR,
+                [
+                    BaseCtrlMenu('off', 'Off', ANKERWORK_FACE_EXPOSURE_OFF),
+                    BaseCtrlMenu('on', 'On', ANKERWORK_FACE_EXPOSURE_ON),
+                ],
+                ANKERWORK_FACE_EXPOSURE_COMP_LENGTH,
+            ),
+            AnkerWorkCtrl(
+                'ankerwork_face_compensation_value',
+                'Face Compensation Amount',
+                'integer',
+                'Set compensation for face exposure settings. Range goes from -3.5 EV as the lowest value (0) '
+                'and 6.5 EV as the highest value (6.5 EV). The default is 35 (which is equivalent to 0 EV).',
+                ANKERWORK_FACE_EXPOSURE_COMP_SELECTOR,
+                [],
+                ANKERWORK_FACE_EXPOSURE_COMP_LENGTH,
+                min = 0,
+                max = 100,
+                default = 35
+            ),
+            AnkerWorkCtrl(
+                'ankerwork_hor_flip',
+                'Flip Horizontal',
+                'menu',
+                'Flip the camera view horizontally.',
+                ANKERWORK_HOR_SELECTOR,
+                [
+                    BaseCtrlMenu('off', 'Off', ANKERWORK_HOR_FLIP_OFF),
+                    BaseCtrlMenu('on', 'On', ANKERWORK_HOR_FLIP_ON),
+                ],
+                ANKERWORK_HOR_LENGTH,
+            ),
+        ]
+
+        for c in self.ctrls:
+            if c.type == 'button':
+                continue
+
+            current_config = to_buf(bytes(c.length))
+            query_xu_control(self.fd, self.unit_id, c.selector, UVC_GET_CUR, current_config)
+            set_value = self._int_from_bytes(current_config)
+            if c.text_id in ['ankerwork_hdr', 'ankerwork_mic_noisered', 'ankerwork_face_focus']:
+                c.value = 'on' if set_value == 1 else 'off'
+            elif c.text_id == 'ankerwork_mic_pickup':
+                c.value = '90' if set_value == ANKERWORK_MIC_PICKUP_90 else '360'
+            elif c.text_id == 'ankerwork_face_compensation_enable':
+                c.value = 'on' if set_value & 0xff == 1 else 'off'
+            elif c.text_id == 'ankerwork_face_compensation_value':
+                c.value = self._map_int_to_comp(set_value)
+            elif c.text_id == 'ankerwork_fov':
+                if set_value == self._int_from_bytes(ANKERWORK_FOV_65):
+                    c.value = '65'
+                elif set_value == self._int_from_bytes(ANKERWORK_FOV_78):
+                    c.value = '78'
+                elif set_value == self._int_from_bytes(ANKERWORK_FOV_95):
+                    c.value = '95'
+                elif set_value == self._int_from_bytes(ANKERWORK_SOLO_FRAME):
+                    c.value = 'auto'
+                else:
+                    c.value = '?'
+            else:
+                set_value = self._int_from_bytes(current_config)
+                c.value = set_value
+
+            if c.type == 'menu':
+                valmenu = find_by_value(c.menu, c.value)
+                if valmenu:
+                    c.value = valmenu.text_id
+
+    @staticmethod
+    def _int_from_bytes(bytes):
+        return int.from_bytes(bytes, byteorder='little', signed=False)
+
+    @staticmethod
+    def _bytes_from_int(number, bytes_to_use):
+        return number.to_bytes(bytes_to_use, byteorder='little', signed=False)
+
+    @staticmethod
+    def _map_comp_to_int(value: int) -> int:
+        assert 0 <= value <= 100, "Value out of range!"
+        return value << 8
+
+    @staticmethod
+    def _map_int_to_comp(value: int) -> int:
+        return value >> 8
+
+    def setup_ctrls(self, params, errs):
+        if not self.supported():
+            return
+
+        for k, v in params.items():
+            ctrl = find_by_text_id(self.ctrls, k)
+            if ctrl is None:
+                continue
+
+            current_config = to_buf(bytes(ctrl.length))
+            query_xu_control(self.fd, self.unit_id, ctrl.selector, UVC_GET_CUR, current_config)
+
+            if ctrl.type == 'menu' or ctrl.type == 'button':
+                menu = find_by_text_id(ctrl.menu, v)
+                if menu is None:
+                    collect_warning(f'AnkerWorkCtrls: can\'t find {v} in {[c.text_id for c in ctrl.menu]}', errs)
+                    continue
+                # Need to keep the previous value and change the first byte of the char array as on/off toggle
+                if ctrl.text_id == 'ankerwork_face_compensation_enable':
+                    desired = current_config
+                    desired[0] = menu.value
+                else:
+                    desired = to_buf(self._bytes_from_int(int(menu.value), ctrl.length))
+            elif ctrl.type == 'integer':
+                if ctrl.text_id == 'ankerwork_face_compensation_value':
+                    cur_enable = self._int_from_bytes(current_config) & 0xff
+                    desired = to_buf(self._bytes_from_int(self._map_comp_to_int(value=int(v)) + cur_enable, ctrl.length))
+                else:
+                    desired = int(v)
+            else:
+                collect_warning(f'Can\'t set {k} to {v} (Unsupported control type {ctrl.type})', errs)
+                continue
+
+
+            current_config = desired
+            query_xu_control(self.fd, self.unit_id, ctrl.selector, UVC_SET_CUR, current_config)
+            query_xu_control(self.fd, self.unit_id, ctrl.selector, UVC_GET_CUR, current_config)
+            current = current_config
+
+            if ctrl.type == 'menu':
+                desmenu = find_by_value(ctrl.menu, desired)
+                if desmenu:
+                    desired = desmenu.text_id
+                curmenu = find_by_value(ctrl.menu, current)
+                if curmenu:
+                    current = curmenu.text_id
+            if current != desired:
+                collect_warning( f'AnkerWorkCtrls: failed to set {k} to {desired}, current value {current}\n', errs)
+                continue
+
+            ctrl.value = desired
+
+    def get_ctrls(self):
+        return self.ctrls
+
 class V4L2Ctrl(BaseCtrl):
     def __init__(self, v4l2_id, text_id, name, type, value, default = None, min = None, max = None, step = None, menu = None):
         super().__init__(text_id, name, type, value, default, min, max, step, menu=menu)
         self.v4l2_id = v4l2_id
+        self.last_set = 0
+        self.repeat = None
 
 class V4L2Ctrls:
     to_type = {
@@ -1510,7 +2114,6 @@ class V4L2Ctrls:
         V4L2_CTRL_TYPE_BUTTON: 'button',
     }
     strtrans = bytes.maketrans(b' -', b'__')
-
 
     def __init__(self, device, fd):
         self.device = device
@@ -1579,13 +2182,18 @@ class V4L2Ctrls:
         while True:
             try:
                 ioctl(self.fd, VIDIOC_QUERYCTRL, qctrl)
-            except:
-                break
+            except OSError as err:
+                if err.errno == EIO:
+                    logging.warning(f'V4L2Ctrls: VIDIOC_QUERYCTL returned EIO for {self.to_text_id(qctrl.name)}. Skipping...')
+                    qctrl = v4l2_queryctrl(qctrl.id + 1 | next_flag)
+                    continue
+                else:
+                    break
             if qctrl.type in [V4L2_CTRL_TYPE_INTEGER, V4L2_CTRL_TYPE_BOOLEAN,
                 V4L2_CTRL_TYPE_MENU, V4L2_CTRL_TYPE_INTEGER_MENU, V4L2_CTRL_TYPE_BUTTON]:
 
                 text_id = self.to_text_id(qctrl.name)
-                text = str(qctrl.name, 'utf-8')
+                text = qctrl.name.decode()
                 ctrl_type = V4L2Ctrls.to_type.get(qctrl.type)
                 if ctrl_type == 'integer' and qctrl.minimum == 0 and qctrl.maximum == 1 and qctrl.step == 1:
                     ctrl_type = 'boolean'
@@ -1603,6 +2211,7 @@ class V4L2Ctrls:
                     v4l2ctrl = V4L2Ctrl(qctrl.id, text_id, text, ctrl_type, None, menu = [ BaseCtrlMenu(text_id, text, text_id) ])
 
                 v4l2ctrl.inactive = bool(qctrl.flags & V4L2_CTRL_FLAG_INACTIVE)
+                v4l2ctrl.readonly = bool(qctrl.flags & V4L2_CTRL_FLAG_READ_ONLY)
                 ctrl_info = V4L2_CTRL_INFO.get(qctrl.id)
                 if ctrl_info is not None:
                     v4l2ctrl.kernel_id = ctrl_info[0]
@@ -1611,6 +2220,9 @@ class V4L2Ctrls:
                 if qctrl.id in V4L2_CTRL_ZEROERS:
                     v4l2ctrl.zeroer = True
                     v4l2ctrl.default = 0
+                
+                if v4l2ctrl.step:
+                    v4l2ctrl.step_big = v4l2ctrl.step * 20
 
                 if qctrl.id == V4L2_CID_WHITE_BALANCE_TEMPERATURE:
                     v4l2ctrl.scale_class = 'white-balance-temperature'
@@ -1632,7 +2244,7 @@ class V4L2Ctrls:
                         except:
                             continue
                         if qctrl.type == V4L2_CTRL_TYPE_MENU:
-                            menu_text = str(qmenu.name, 'utf-8')
+                            menu_text = qmenu.name.decode()
                             menu_text_id = self.to_text_id(qmenu.name)
                         else:
                             menu_text_id = str(qmenu.value)
@@ -1644,6 +2256,13 @@ class V4L2Ctrls:
                         if v4l2ctrl.default == qmenu.index:
                             v4l2ctrl.default = menu_text_id
 
+                    # when there is no menu item for the value
+                    # it should be None
+                    if isinstance(v4l2ctrl.value, int):
+                        v4l2ctrl.value = None
+                    if isinstance(v4l2ctrl.default, int):
+                        v4l2ctrl.default = None
+
                 ctrls.append(v4l2ctrl)
             qctrl = v4l2_queryctrl(qctrl.id | next_flag)
 
@@ -1653,7 +2272,7 @@ class V4L2Ctrls:
         return self.ctrls
 
     def to_text_id(self, text):
-        return str(text.lower().translate(V4L2Ctrls.strtrans, delete = b',&(.)/').replace(b'__', b'_'), 'utf-8')
+        return text.lower().translate(V4L2Ctrls.strtrans, delete = b',&(.)/').replace(b'__', b'_').decode()
 
     def find_by_v4l2_id(self, v4l2_id):
         idx = find_idx(self.ctrls, lambda c: hasattr(c, 'v4l2_id') and c.v4l2_id == v4l2_id)
@@ -1725,6 +2344,7 @@ class V4L2Listener(Thread):
                 break
             ctrl = self.ctrls.find_by_v4l2_id(event.id)
             ctrl.inactive = bool(event.ctrl.flags & V4L2_CTRL_FLAG_INACTIVE)
+            ctrl.readonly = bool(event.ctrl.flags & V4L2_CTRL_FLAG_READ_ONLY)
             errs = []
             self.ctrls.set_ctrl_int_value(ctrl, int(event.ctrl.value), errs)
             logging.info(f'VIDIOC_DQEVENT {ctrl.text_id}={ctrl.value} (pending: {event.pending})')
@@ -1789,8 +2409,8 @@ class V4L2FmtCtrls:
         resolutions = self.get_resolutions(fmt.fmt.pix.pixelformat)
         framerates = self.get_framerates(fmt.fmt.pix.pixelformat, fmt.fmt.pix.width, fmt.fmt.pix.height)
         cap = self.get_capability()
-        card = str(cap.card, 'utf-8')
-        driver = str(cap.driver, 'utf-8')
+        card = cap.card.decode()
+        driver = cap.driver.decode()
         path = self.device
         real_path = os.path.abspath(os.path.join(os.path.dirname(path), os.readlink(path))) if os.path.islink(path) else path
 
@@ -1826,6 +2446,9 @@ class V4L2FmtCtrls:
             collect_warning(f'V4L2FmtCtrls: Can\'t get fmt {e}', errs)
             return
 
+        if pixelformat == pxf2str(fmt.fmt.pix.pixelformat):
+            return
+        
         fmt.fmt.pix.pixelformat = str2pxf(pixelformat)
 
         try:
@@ -1847,6 +2470,9 @@ class V4L2FmtCtrls:
             ioctl(self.fd, VIDIOC_G_FMT, fmt)
         except Exception as e:
             collect_warning(f'V4L2FmtCtrls: Can\'t get fmt {e}', errs)
+            return
+
+        if wh2str(fmt.fmt.pix) == resolution:
             return
 
         str2wh(resolution, fmt.fmt.pix)
@@ -1891,6 +2517,9 @@ class V4L2FmtCtrls:
         return dn2str(parm.parm.capture.timeperframe)
 
     def set_fps(self, ctrl, fps, errs):
+        if fps == self.get_fps():
+            return
+
         parm = v4l2_streamparm()
         parm.type = V4L2_BUF_TYPE_VIDEO_CAPTURE
         parm.parm.capture.timeperframe.numerator = 10
@@ -1937,6 +2566,7 @@ class V4L2FmtCtrls:
                 break
             resolutions.append(wh2str(frm.discrete))
             frm.index += 1
+        resolutions.sort(key=lambda r: list(map(int, r.split('x'))), reverse=True)
         return resolutions
 
     def get_framerates(self, pixelformat, width, height):
@@ -1996,7 +2626,7 @@ def resolve_v4l_ids(v4l_ctrls, preset):
             ret[c.text_id] = v
     return ret
 
-class PresetCtrls:
+class ColorPreset:
     def __init__(self, cam_ctrls):
         self.ctrls = []
         self.cam_ctrls = cam_ctrls
@@ -2077,7 +2707,9 @@ class PresetCtrls:
 
     def get_default(self):
         for c in self.default_controls:
-            if c.value != c.default and not c.inactive:
+            # If the control can't be changed (inactive or readonly), don't
+            # allow reverting to defaults
+            if c.value != c.default and not c.inactive and not c.readonly:
                 return False
         return True
 
@@ -2091,22 +2723,119 @@ class PresetCtrls:
                 continue
             menu = find_by_text_id(ctrl.menu, v)
             if menu is None:
-                collect_warning(f'PresetCtrls: Can\'t find {v} in {[c.text_id for c in ctrl.menu]}', errs)
+                collect_warning(f'ColorPreset: Can\'t find {v} in {[c.text_id for c in ctrl.menu]}', errs)
                 continue
 
             self.cam_ctrls.setup_ctrls({**self.defaults, **menu.presets}, errs)
 
 class SystemdSaver:
     def __init__(self, cam_ctrls):
+        self.systemd_user_dir = os.path.expanduser('~/.config/systemd/user')
+        self.service_file = 'cameractrlsd.service'
+
         self.cam_ctrls = cam_ctrls
-        self.ctrls = [] if not self.systemd_available() else [
-            BaseCtrl('systemd_save', 'Save settings to Systemd', 'button',
-                menu = [ BaseCtrlMenu('save', 'Save', 'save') ], tooltip = 'Save settings into a systemd path triggered user service',
+        if not self.systemd_available():
+            self.ctrls = []
+            return
+
+        self.ctrls = [
+            BaseCtrl('systemd_cameractrlsd', 'Start with Systemd', 'boolean',
+                tooltip = 'Start cameractrlsd with Systemd to restore Preset 1 at device connection',
+                unrestorable = True,
+                value = self.is_service_active(),
             )
         ]
 
     def systemd_available(self):
         return os.path.exists('/bin/systemctl')
+
+    def is_service_active(self):
+        return os.path.exists(os.path.join(self.systemd_user_dir, self.service_file)) and \
+            subprocess.run(["systemctl", "--user", "is-active", self.service_file], capture_output=True).returncode == 0
+
+    def get_ctrls(self):
+        return self.ctrls
+
+    def setup_ctrls(self, params, errs):
+        for k, v in params.items():
+            ctrl = find_by_text_id(self.ctrls, k)
+            if ctrl is None:
+                continue
+            ctrl.value = to_bool(v)
+            if ctrl.value:
+                self.create_systemd_service(ctrl, errs)
+            else:
+                self.disable_systemd_service(errs)
+
+    def create_systemd_service(self, ctrl, errs):
+        service_file_str = self.get_service_file(sys.path[0])
+
+        os.makedirs(self.systemd_user_dir, mode=0o755, exist_ok=True)
+
+        with open(os.path.join(self.systemd_user_dir, self.service_file), 'w', encoding="utf-8") as f:
+            f.write(service_file_str)
+
+        pdr = subprocess.run(["systemctl", "--user", "daemon-reload"], capture_output=True)
+        if pdr.returncode:
+            errs.extend(pdr.stderr.decode().splitlines())
+
+        pen = subprocess.run(["systemctl", "--user", "enable", "--now", self.service_file], capture_output=True)
+        if pen.returncode:
+            errs.extend(pen.stderr.decode().splitlines())
+
+        pen = subprocess.run(["systemctl", "--user", "is-active", "--now", self.service_file], capture_output=True)
+        if pen.returncode:
+            ctrl.value = False
+
+            pen = subprocess.run(["journalctl", "-p", "3", "-n", "1", "-o", "cat", "--user-unit", self.service_file], capture_output=True)
+            errs.extend(pen.stdout.decode().splitlines())
+
+    def disable_systemd_service(self, errs):
+        p = subprocess.run(["systemctl", "--user", "disable", "--now", self.service_file], capture_output=True)
+        if p.returncode:
+            errs.extend(p.stderr.decode().splitlines())
+
+
+    def get_service_file(self, script_path):
+        return f"""[Unit]
+Description=CameraCtrls daemon - restore control values
+
+[Service]
+Type=simple
+ExecStart={script_path}/cameractrlsd.py
+
+[Install]
+WantedBy=graphical-session.target
+"""
+
+class ConfigPreset:
+    def __init__(self, cam_ctrls):
+        self.cam_ctrls = cam_ctrls
+        self.ctrls = [
+            BaseCtrl('preset', 'Preset', 'button',
+                tooltip = 'Preset\nClick loads the preset\nLong press saves it',
+                child_tooltip = 'Click to load, long press to save',
+                menu = [
+                    BaseCtrlMenu('load_1', '1', 'load_1', lp_text_id='save_1'),
+                    BaseCtrlMenu('load_2', '2', 'load_2', lp_text_id='save_2'),
+                    BaseCtrlMenu('load_3', '3', 'load_3', lp_text_id='save_3'),
+                    BaseCtrlMenu('load_4', '4', 'load_4', lp_text_id='save_4'),
+                    #BaseCtrlMenu('load_5', '5', 'load_5', lp_text_id='save_5'),
+                    #BaseCtrlMenu('load_6', '6', 'load_6', lp_text_id='save_6'),
+                    #BaseCtrlMenu('load_7', '7', 'load_7', lp_text_id='save_7'),
+                    #BaseCtrlMenu('load_8', '8', 'load_8', lp_text_id='save_8'),
+                    BaseCtrlMenu('save_1', 'Save 1', 'save_1', gui_hidden=True),
+                    BaseCtrlMenu('save_2', 'Save 2', 'save_2', gui_hidden=True),
+                    BaseCtrlMenu('save_3', 'Save 3', 'save_3', gui_hidden=True),
+                    BaseCtrlMenu('save_4', 'Save 4', 'save_4', gui_hidden=True),
+                    #BaseCtrlMenu('save_5', 'Save 5', 'save_5', gui_hidden=True),
+                    #BaseCtrlMenu('save_6', 'Save 6', 'save_6', gui_hidden=True),
+                    #BaseCtrlMenu('save_7', 'Save 7', 'save_7', gui_hidden=True),
+                    #BaseCtrlMenu('save_8', 'Save 8', 'save_8', gui_hidden=True),
+                ],
+                reopener = True,
+            )
+        ]
 
     def get_ctrls(self):
         return self.ctrls
@@ -2118,66 +2847,263 @@ class SystemdSaver:
                 continue
             menu = find_by_text_id(ctrl.menu, v)
             if menu is None:
-                collect_warning(f'SystemdSaver: Can\'t find {v} in {[c.text_id for c in ctrl.menu]}', errs)
+                collect_warning(f'ConfigPreset: Can\'t find {v} in {[c.text_id for c in ctrl.menu]}', errs)
                 continue
-            if menu.text_id == 'save':
-                self.create_systemd_service_and_path()
-
-    def create_systemd_service_and_path(self):
-        device = self.cam_ctrls.device
-        dev_id = os.path.basename(device)
-        controls = self.get_claimed_controls()
-
-        service_file_str = self.get_service_file(sys.path[0], device, dev_id, controls)
-        path_file_str = self.get_path_file(device)
-
-        systemd_user_dir = os.path.expanduser('~/.config/systemd/user')
-        prefix = 'cameractrls'
-
-        service_file = f'{prefix}-{dev_id}.service'
-        path_file = f'{prefix}-{dev_id}.path'
-
-        os.makedirs(systemd_user_dir, exist_ok=True)
-
-        with open(f'{systemd_user_dir}/{service_file}', 'w', encoding="utf-8") as f:
-            f.write(service_file_str)
-
-        with open(f'{systemd_user_dir}/{path_file}', 'w', encoding="utf-8") as f:
-            f.write(path_file_str)
-
-        subprocess.run(["systemctl", "--user", "enable", "--now", service_file])
-        subprocess.run(["systemctl", "--user", "enable", "--now", path_file])
+            [op, preset_num] = menu.text_id.split('_')
+            if op == 'load':
+                self.load_preset(self.cam_ctrls.device, preset_num, errs)
+            elif op == 'save':
+                self.save_preset(self.cam_ctrls.device, preset_num, errs)
 
     def get_claimed_controls(self):
-        ctrls = [
-            f'{c.text_id}={c.value}'
+        return {
+            c.text_id: c.value
             for c in self.cam_ctrls.get_ctrls()
-            if not c.inactive and c.value is not None and c.value != c.default
+            if not c.inactive and not c.readonly and c.value is not None and c.type != 'info' and not c.unrestorable
+        }
+
+    def load_preset(self, device, preset_num, errs):
+        filename = get_configfilename(device)
+        if not os.path.exists(filename):
+            collect_warning(f'ConfigPreset: preset file {filename} not found', errs)
+            return
+
+        config = configparser.ConfigParser()
+        config.read(filename)
+        preset = f'preset_{preset_num}'
+        if preset not in config:
+            collect_warning(f'ConfigPreset: {preset} not found in {filename}', errs)
+            return
+        
+        for ctrl in config[preset]:
+            self.cam_ctrls.setup_ctrls({ctrl: config[preset][ctrl]}, errs)
+
+    def save_preset(self, device, preset_num, errs):
+        try:
+            configdir = get_configdir()
+            os.makedirs(configdir, mode=0o755, exist_ok=True)
+
+            filename = get_configfilename(device)
+            config = configparser.ConfigParser()
+            config.read(filename)
+            config[f'preset_{preset_num}'] = self.get_claimed_controls()
+            with open(filename, 'w') as configfile:
+                config.write(configfile)
+        except Exception as e:
+            collect_warning(f'ConfigPreset: save_preset failed: {e}', errs)
+
+def find_symlink_in(dir, paths):
+    for path in paths:
+        if not os.path.isdir(path):
+            continue
+        for p in os.scandir(path):
+            if p.is_symlink() and os.path.realpath(p) == dir:
+                return p
+    return None
+
+# remove in 0.7.0
+# see https://github.com/soyersoyer/cameractrls/pull/50
+def migrate_old_config(dev_id):
+    xdg_config = os.getenv("XDG_CONFIG_HOME")
+    if not xdg_config:
+        return
+
+    filename = os.path.join(xdg_config, f'{dev_id}.ini')
+    if not os.path.exists(filename):
+        return
+
+    configdir = get_configdir()
+    try:
+        os.makedirs(configdir, mode=0o755, exist_ok=True)
+        new_filename = os.path.join(configdir, f'{dev_id}.ini')
+
+        os.rename(filename, new_filename)
+    except Exception as e:
+        logging.debug(f'ConfigPreset: migrate_old_config failed: {e}')
+
+def get_configdir():
+    config_dir_base = os.path.expanduser(os.getenv("XDG_CONFIG_HOME", '~/.config'))
+    return os.path.join(config_dir_base, 'hu.irl.cameractrls')
+
+def get_configfilename(device):
+    if device.startswith('/dev/video'):
+        path = find_symlink_in(device, v4ldirs.keys())
+        if path:
+            device = path.path
+    dev_id = os.path.basename(device)
+
+    # remove in 0.7.0
+    migrate_old_config(dev_id)
+
+    return os.path.join(get_configdir(), f'{dev_id}.ini')
+
+def set_repeat_interval(ctrl, e2e_ns):
+    if ctrl:
+        ctrl.repeat = e2e_ns / ((ctrl.max - ctrl.min) / ctrl.step)
+
+class DesktopPortal():
+    def __init__(self, ctrls):
+        self.cam_ctrls = ctrls
+        if not self.portal_available():
+            self.ctrls = []
+            return
+
+        self.ctrls = [
+            BaseCtrl('desktop_portal_cameractrlsd', 'Start with Desktop Portal (re-login required)', 'button',
+                tooltip = 'Start cameractrlsd with Desktop Portal to restore Preset 1 at device connection\nRe-login required to start the daemon',
+                unrestorable = True,
+                menu = [
+                    BaseCtrlMenu('disable', 'Disable', 'disable'),
+                    BaseCtrlMenu('enable', 'Enable', 'enable'),
+                ],
+            )
         ]
-        return ','.join(ctrls)
 
-    def get_service_file(self, script_path, device, dev_id, controls):
-        return f"""[Unit]
-Description=Restore {dev_id} controls
+    def get_ctrls(self):
+        return self.ctrls
 
-[Service]
-Type=oneshot
-ExecStart={script_path}/cameractrls.py -d {device} -c {controls}
+    def setup_ctrls(self, params, errs):
+        for k, v in params.items():
+            ctrl = find_by_text_id(self.ctrls, k)
+            if ctrl is None:
+                continue
+            menu  = find_by_text_id(ctrl.menu, v)
+            if menu is None:
+                collect_warning(f'DesktopPortal: can\'t find {v} in {[c.text_id for c in ctrl.menu]}', errs)
+                continue
+            if menu.value == 'enable':
+                self.request_autostart(True, errs)
+            else:
+                self.request_autostart(False, errs)
 
-[Install]
-WantedBy=graphical-session.target
-"""
+    def portal_available(self):
+        return 'FLATPAK_ID' in os.environ or 'SNAP' in os.environ
 
-    def get_path_file(self, device):
-        return f"""[Unit]
-Description=Watch {device} and restore controls
+    def receive_autostart(self, connection, sender_name, object_path, interface_name, signal_name, parameters, user_data):
+        logging.debug(f'DesktopPortal: receive_autostart: {parameters[1]}')
 
-[Path]
-PathExists={device}
+    def request_autostart(self, is_enabled, errs):
+        from gi.repository import Gio, GLib
+        from random import randint
 
-[Install]
-WantedBy=paths.target
-"""
+        try:
+            proxy = Gio.DBusProxy.new_for_bus_sync(
+                Gio.BusType.SESSION,
+                Gio.DBusProxyFlags.NONE,
+                None,
+                'org.freedesktop.portal.Desktop',
+                '/org/freedesktop/portal/desktop',
+                'org.freedesktop.portal.Background',
+                None,
+            )
+
+            token = randint(10000000, 20000000)
+            options = {
+                'handle_token': GLib.Variant('s', f'hu/irl/cameractrls/{token}'),
+                'reason': GLib.Variant('s', ('Autostart cameractrlsd in the background.')),
+                'autostart': GLib.Variant('b', is_enabled),
+                'commandline': GLib.Variant('as', ['cameractrlsd.py']),
+                'dbus-activatable': GLib.Variant('b', False),
+            }
+
+            request = proxy.RequestBackground('(sa{sv})', "wayland:", options)
+        except Exception as e:
+            collect_warning(f'DesktopPortal: RequestBackground failed: {e}', errs)
+
+class PTZController():
+    def __init__(self, ctrls):
+        self.ctrls = ctrls
+        v4l_ctrls = ctrls.v4l_ctrls
+
+        self.zoom_absolute = v4l_ctrls.find_by_v4l2_id(V4L2_CID_ZOOM_ABSOLUTE)
+        self.pan_absolute = v4l_ctrls.find_by_v4l2_id(V4L2_CID_PAN_ABSOLUTE)
+        self.tilt_absolute = v4l_ctrls.find_by_v4l2_id(V4L2_CID_TILT_ABSOLUTE)
+        self.pan_speed = v4l_ctrls.find_by_v4l2_id(V4L2_CID_PAN_SPEED)
+        self.tilt_speed = v4l_ctrls.find_by_v4l2_id(V4L2_CID_TILT_SPEED)
+        self.pantilt_reset = ctrls.get_ctrl_by_text_id('logitech_pantilt_reset')
+        self.pantilt_preset = ctrls.get_ctrl_by_text_id('logitech_pantilt_preset')
+
+
+        e2e_ns = 2_000_000_000 # 2s end to end interval
+        set_repeat_interval(self.zoom_absolute, e2e_ns)
+        set_repeat_interval(self.pan_absolute, e2e_ns)
+        set_repeat_interval(self.tilt_absolute, e2e_ns)
+
+        self.has_zoom_absolute = self.zoom_absolute != None
+        self.has_pantilt_speed = self.pan_speed != None and self.tilt_speed != None
+        self.has_pantilt_absolute = self.pan_absolute != None and self.tilt_absolute != None
+
+    def do_percent(self, percent, errs, control):
+        if control is not None:
+            control_size = (control.max - control.min) // control.step
+            value = control.min + round(percent * control_size) * control.step
+            if value != control.value:
+                self.ctrls.setup_ctrls({control.text_id: value}, errs)
+        return 0
+
+    def do_step(self, step, errs, control):
+        now = time.clock_gettime_ns(time.CLOCK_MONOTONIC)
+        if control is not None and control.last_set + control.repeat < now:
+            act_step = (control.step or 1) * step
+            des_value = control.value + act_step
+            value = min(max(des_value, control.min), control.max)
+            if value != control.value:
+                self.ctrls.setup_ctrls({control.text_id: value}, errs)
+                control.last_set = now
+            if des_value != value:
+                return 1
+        return 0
+
+    def do_speed(self, step, errs, control):
+        if control is not None:
+            cur_step = (control.step or 1) * step
+            value = min(max(cur_step, control.min), control.max)
+            if value != control.value:
+                self.ctrls.setup_ctrls({control.text_id: value}, errs)
+        return 0
+
+    def do_zoom_percent(self, percent, errs):
+        return self.do_percent(percent, errs, self.zoom_absolute)
+
+    def do_pan_percent(self, percent, errs):
+        return self.do_percent(percent, errs, self.pan_absolute)
+
+    def do_tilt_percent(self, percent, errs):
+        return self.do_percent(percent, errs, self.tilt_absolute)
+
+    def do_zoom_step(self, step, errs):
+        return self.do_step(step, errs, self.zoom_absolute)
+
+    def do_zoom_step_big(self, step, errs):
+        return self.do_step(step * self.zoom_absolute.step_big, errs, self.zoom_absolute)
+
+    def do_pan_step(self, step, errs):
+        return self.do_step(step, errs, self.pan_absolute)
+
+    def do_tilt_step(self, step, errs):
+        return self.do_step(step, errs, self.tilt_absolute)
+
+    def do_pan_speed(self, step, errs):
+        return self.do_speed(step, errs, self.pan_speed)
+
+    def do_tilt_speed(self, step, errs):
+        return self.do_speed(step, errs, self.tilt_speed)
+
+    def do_reset(self, errs):
+        if self.zoom_absolute:
+            self.ctrls.setup_ctrls({self.zoom_absolute.text_id: self.zoom_absolute.default}, errs)
+        if self.pan_absolute:
+            self.ctrls.setup_ctrls({self.pan_absolute.text_id: self.pan_absolute.default}, errs)
+        if self.tilt_absolute:
+            self.ctrls.setup_ctrls({self.tilt_absolute.text_id: self.tilt_absolute.default}, errs)
+        if self.pantilt_reset:
+            self.ctrls.setup_ctrls({self.pantilt_reset.text_id: 'both'}, errs)
+        return 0
+
+    def do_preset(self, preset_num, errs):
+        if self.pantilt_preset:
+            self.ctrls.setup_ctrls({self.pantilt_preset.text_id: f'goto_{preset_num}'}, errs)
+        return 0
 
 class CtrlPage:
     def __init__(self, title, categories, target='main'):
@@ -2201,9 +3127,22 @@ class CameraCtrls:
             self.fmt_ctrls,
             KiyoProCtrls(device, fd),
             LogitechCtrls(device, fd),
+            DellUltraSharpCtrls(device, fd),
+            AnkerWorkCtrls(device, fd),
             SystemdSaver(self),
-            PresetCtrls(self),
+            ColorPreset(self),
+            ConfigPreset(self),
+            DesktopPortal(self),
         ]
+
+    def has_ptz(self):
+        return any([
+            self.v4l_ctrls.find_by_v4l2_id(V4L2_CID_ZOOM_ABSOLUTE),
+            self.v4l_ctrls.find_by_v4l2_id(V4L2_CID_PAN_ABSOLUTE),
+            self.v4l_ctrls.find_by_v4l2_id(V4L2_CID_TILT_ABSOLUTE),
+            self.v4l_ctrls.find_by_v4l2_id(V4L2_CID_PAN_SPEED),
+            self.v4l_ctrls.find_by_v4l2_id(V4L2_CID_TILT_SPEED),
+        ])
 
     def print_ctrls(self):
         for page in self.get_ctrl_pages():
@@ -2229,10 +3168,12 @@ class CameraCtrls:
                         print(' )', end = '')
                     if c.inactive:
                         print(' | inactive', end = '')
+                    if c.readonly:
+                        print(' | readonly', end = '')
                     print()
 
     def setup_ctrls(self, params, errs):
-        logging.info(f'CameraCtrls.setup_ctrls: {params}')
+        logging.debug(f'CameraCtrls.setup_ctrls: {params}')
         for c in self.ctrls:
             c.setup_ctrls(params, errs)
         unknown_ctrls = list(set(params.keys()) - set([c.text_id for c in self.get_ctrls()]))
@@ -2245,12 +3186,26 @@ class CameraCtrls:
             ctrls += c.get_ctrls()
         return ctrls
 
+    def get_ctrl_by_text_id(self, text_id):
+        return find_by_text_id(self.get_ctrls(), text_id)
+
     def get_ctrl_pages(self):
         ctrls = self.get_ctrls()
         pages = [
             CtrlPage('Basic', [
                 CtrlCategory('Crop',
-                    pop_list_by_text_ids(ctrls, ['kiyo_pro_fov', 'logitech_brio_fov']) +
+                    pop_list_by_text_ids(ctrls, [
+                        'kiyo_pro_fov',
+                        'logitech_brio_fov',
+                        'dell_ultrasharp_fov',
+                        'dell_ultrasharp_auto_framing',
+                        'dell_ultrasharp_camera_transition',
+                        'dell_ultrasharp_tracking_sensitivity',
+                        'dell_ultrasharp_tracking_frame_size',
+                        'ankerwork_fov',
+                        'ankerwork_auto_framing',
+                        'ankerwork_hor_flip',
+                    ]) +
                     pop_list_by_ids(ctrls, [
                         V4L2_CID_ZOOM_ABSOLUTE,
                         V4L2_CID_ZOOM_CONTINUOUS,
@@ -2277,7 +3232,7 @@ class CameraCtrls:
                         V4L2_CID_AUTO_FOCUS_RANGE,
                         V4L2_CID_AUTO_FOCUS_STATUS,
                     ]) +
-                    pop_list_by_text_ids(ctrls, ['kiyo_pro_af_mode', 'logitech_motor_focus'])
+                    pop_list_by_text_ids(ctrls, ['kiyo_pro_af_mode', 'logitech_motor_focus', 'ankerwork_face_focus'])
                 ),
             ]),
             CtrlPage('Exposure', [
@@ -2309,11 +3264,17 @@ class CameraCtrls:
                         V4L2_CID_WIDE_DYNAMIC_RANGE,
                         V4L2_CID_HDR_SENSOR_MODE,
                     ]) +
-                    pop_list_by_text_ids(ctrls, ['kiyo_pro_hdr'])
+                    pop_list_by_text_ids(ctrls, [
+                        'kiyo_pro_hdr',
+                        'dell_ultrasharp_hdr',
+                        'ankerwork_hdr',
+                        'ankerwork_face_compensation_enable',
+                        'ankerwork_face_compensation_value',
+                    ])
                 ),
             ]),
             CtrlPage('Color', [
-                CtrlCategory('Preset', pop_list_by_text_ids(ctrls, ['color_preset'])),
+                CtrlCategory('Color Preset', pop_list_by_text_ids(ctrls, ['color_preset'])),
                 CtrlCategory('Balance', pop_list_by_ids(ctrls, [
                     V4L2_CID_AUTO_WHITE_BALANCE,
                     V4L2_CID_AUTO_N_PRESET_WHITE_BALANCE,
@@ -2343,6 +3304,7 @@ class CameraCtrls:
                 CtrlCategory('Rotate/Flip', pop_list_by_ids(ctrls, [V4L2_CID_ROTATE, V4L2_CID_HFLIP, V4L2_CID_VFLIP])),
                 CtrlCategory('Image Source Control', pop_list_by_base_id(ctrls, V4L2_CID_IMAGE_SOURCE_CLASS_BASE)),
                 CtrlCategory('Image Process Control', pop_list_by_base_id(ctrls, V4L2_CID_IMAGE_PROC_CLASS_BASE)),
+                CtrlCategory('Cameractrlsd', pop_list_by_text_ids(ctrls, ['systemd_cameractrlsd', 'desktop_portal_cameractrlsd'])),
             ]),
             CtrlPage('Compression', [
                 CtrlCategory('Codec', pop_list_by_base_id(ctrls, V4L2_CID_CODEC_BASE)),
@@ -2353,10 +3315,10 @@ class CameraCtrls:
                 CtrlCategory('Info', pop_list_by_text_ids(ctrls, ['card', 'driver', 'path', 'real_path'])),
             ]),
             CtrlPage('Settings', [
-                CtrlCategory('Save', pop_list_by_text_ids(ctrls, ['systemd_save', 'kiyo_pro_save'])),
+                CtrlCategory('Save', pop_list_by_text_ids(ctrls, ['kiyo_pro_save', 'preset'])),
             ], target='footer')
         ]
-        pages[3].categories += CtrlCategory('Other', ctrls), #the rest
+        pages[3].categories.insert(-1, CtrlCategory('Other', ctrls)) # the rest before cameractrlsd
 
         # filter out the empty categories and pages
         for page in pages:
