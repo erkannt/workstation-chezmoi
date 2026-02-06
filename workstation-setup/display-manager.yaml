@@ -8,73 +8,94 @@
         name: "{{ item }}"
         state: present
       loop:
-        - gcc
-        - make
         - pam-devel
         - libxcb
         - linux-vt-setcolors
+        - minisign
+
+    - name: Download zig tarball
+      get_url:
+        url: https://ziglang.org/download/0.15.2/zig-x86_64-linux-0.15.2.tar.xz
+        dest: /tmp/zig-x86_64-linux-0.15.2.tar.xz
+        mode: "0644"
+
+    - name: Download zig signature
+      get_url:
+        url: https://ziglang.org/download/0.15.2/zig-x86_64-linux-0.15.2.tar.xz.minisig
+        dest: /tmp/zig-x86_64-linux-0.15.2.tar.xz.minisig
+        mode: "0644"
+
+    - name: Verify zig tarball signature
+      command: minisign -Vm /tmp/zig-x86_64-linux-0.15.2.tar.xz -P "RWSGOq2NVecA2UPNdBUZykf1CCb147pkmdtYxgb3Ti+JO/wCYvhbAb/U"
+      register: zig_sig
+      changed_when: false
+      failed_when: zig_sig.rc != 0
+
+    - name: Ensure /opt/zig directory exists
+      file:
+        path: /opt/zig
+        state: directory
+        mode: "0755"
+
+    - name: Extract zig to /opt/zig
+      unarchive:
+        src: /tmp/zig-x86_64-linux-0.15.2.tar.xz
+        dest: /opt/zig
+        remote_src: yes
+        extra_opts:
+          - "--strip-components=1"
 
     - name: Get ly source
       git:
-        repo: "https://github.com/erkannt/ly.git"
-        version: "master"
+        repo: "https://github.com/fairyglade/ly.git"
         dest: /tmp/ly
+        version: "v1.3.2"
         accept_hostkey: True
 
-    - name: Install ly
-      make:
+    - name: Build ly and install
+      command: /opt/zig/zig build installexe -Dinit_system=runit
+      args:
         chdir: /tmp/ly
-        target: install
 
-    - name: Install ly service
-      make:
-        chdir: /tmp/ly
-        target: installrunit
+    - name: Enable ly service under runit
+      runit:
+        name: ly
+        state: started
+        enabled: True
 
-    - name: tweak service to match colors to nord theme
-      lineinfile:
-        path: /etc/sv/ly/run
-        regexp: '^setcolors'
-        insertbefore: '^exec setsid'
-        line: 'setcolors /home/hff/.vtt-colors'
-
-    - name: set ly config
-      lineinfile:
-        path: /etc/ly/config.ini
-        regexp: "{{ item.regexp }}"
-        line: "{{ item.line }}"
+    - name: Disable lightdm and agetty on the tty we use for ly
+      runit:
+        name: "{{ item }}"
+        enabled: False
       loop:
-        - { regexp: 'animate = ', line: 'animate = true' }
-        - { regexp: 'animation = ', line: 'animation = 1' }
-        - { regexp: 'blank_password = ', line: 'blank_password = true' }
-        - { regexp: 'hide_f1_commands = ', line: 'hide_f1_commands = true' }
-        - { regexp: 'term_reset_cmd = ', line: 'term_reset_cmd = /usr/bin/tput reset; setcolors -c /dev/tty2 /home/hff/.vtt-colors' }
-        - { regexp: 'shutdown_cmd = ', line: 'shutdown_cmd = shutdown -h now' }
+        - lightdm
+        - agetty-tty2
+
+    # - name: tweak service to match colors to nord theme
+    #   lineinfile:
+    #     path: /etc/sv/ly/run
+    #     regexp: "^setcolors"
+    #     insertbefore: "^exec setsid"
+    #     line: "setcolors /home/hff/.vtt-colors"
+
+    # - name: set ly config
+    #   lineinfile:
+    #     path: /etc/ly/config.ini
+    #     regexp: "{{ item.regexp }}"
+    #     line: "{{ item.line }}"
+    #   loop:
+    #     - { regexp: "animate = ", line: "animate = true" }
+    #     - { regexp: "animation = ", line: "animation = 1" }
+    #     - { regexp: "blank_password = ", line: "blank_password = true" }
+    #     - { regexp: "hide_f1_commands = ", line: "hide_f1_commands = true" }
+    #     - {
+    #         regexp: "term_reset_cmd = ",
+    #         line: "term_reset_cmd = /usr/bin/tput reset; setcolors -c /dev/tty2 /home/hff/.vtt-colors",
+    #       }
+    #     - { regexp: "shutdown_cmd = ", line: "shutdown_cmd = shutdown -h now" }
 
     - name: improve tty font choice
       lineinfile:
         path: /etc/rc.conf
-        regexp: 'FONT='
+        regexp: "FONT="
         line: FONT="Mik"
-
-    - name: enable ly
-      runit:
-        name: ly
-        enabled: yes
-        state: started
-
-    - name: disable existing DM and tty2
-      runit:
-        name: "{{ item }}"
-        enabled: no
-        state: stopped
-      loop:
-        - lxdm
-        - lightdm
-        - agetty-tty2
-
-    - name: install slock
-      xbps:
-        name: slock
-        state: present
-
