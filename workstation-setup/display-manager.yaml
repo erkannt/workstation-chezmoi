@@ -71,28 +71,32 @@
         - lightdm
         - agetty-tty2
 
-    # - name: tweak service to match colors to nord theme
-    #   lineinfile:
-    #     path: /etc/sv/ly/run
-    #     regexp: "^setcolors"
-    #     insertbefore: "^exec setsid"
-    #     line: "setcolors /home/hff/.vtt-colors"
+    - name: tweak service to match colors to nord theme
+      lineinfile:
+        path: /etc/sv/ly/run
+        regexp: "^setcolors"
+        insertbefore: "^exec setsid"
+        line: "setcolors /home/hff/.vtt-colors"
 
-    # - name: set ly config
-    #   lineinfile:
-    #     path: /etc/ly/config.ini
-    #     regexp: "{{ item.regexp }}"
-    #     line: "{{ item.line }}"
-    #   loop:
-    #     - { regexp: "animate = ", line: "animate = true" }
-    #     - { regexp: "animation = ", line: "animation = 1" }
-    #     - { regexp: "blank_password = ", line: "blank_password = true" }
-    #     - { regexp: "hide_f1_commands = ", line: "hide_f1_commands = true" }
-    #     - {
-    #         regexp: "term_reset_cmd = ",
-    #         line: "term_reset_cmd = /usr/bin/tput reset; setcolors -c /dev/tty2 /home/hff/.vtt-colors",
-    #       }
-    #     - { regexp: "shutdown_cmd = ", line: "shutdown_cmd = shutdown -h now" }
+    - name: set ly config
+      lineinfile:
+        path: /etc/ly/config.ini
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+      loop:
+        - { regexp: "clear_password = ", line: "clear_password = true" }
+        - { regexp: "animation = ", line: "animation = matrix" }
+        - { regexp: "hide_borders = ", line: "hide_borders = true" }
+        - { regexp: "hide_key_hints = ", line: "hide_key_hints = true" }
+        - {
+            regexp: "hide_keyboard_locks = ",
+            line: "hide_keyboard_locks = true",
+          }
+        - {
+            regexp: "hide_version_string = ",
+            line: "hide_version_string = true",
+          }
+        - { regexp: "shutdown_cmd = ", line: "shutdown_cmd = shutdown -h now" }
 
     - name: improve tty font choice
       lineinfile:
