@@ -198,4 +198,6 @@ fi
 }
 compdef _uv_run_mod uv
 
+# LLM providers
+source $HOME/.keys/llm_provider_env
 
