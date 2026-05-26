@@ -18,6 +18,7 @@
 	la = !git l --all
 	r = !git l -20
 	tree = log --graph --oneline --decorate --branches --all
+  d = !GIT_EXTERNAL_DIFF=difft git --no-pager diff --ext-diff --textconv
 [core]
 	excludesfile = ~/.gitignore
 	pager = delta --diff-so-fancy
