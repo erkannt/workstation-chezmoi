@@ -3,7 +3,7 @@
   become: true
 
   vars:
-    - packages:
+    packages:
       - slack-desktop
       - zoom
       - spotify
