@@ -14,6 +14,7 @@
         - system-config-printer
         - net-tools
         - avahi
+        - libfido2
         - nss-mdns
         - void-repo-nonfree
         - noto-fonts-ttf
