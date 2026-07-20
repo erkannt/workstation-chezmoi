@@ -95,6 +95,7 @@
           - python3-wheel
           - python3-distutils-extra
           - intltool
+          - font-iosevka
 
 
     - name: Enable services associated with applications
