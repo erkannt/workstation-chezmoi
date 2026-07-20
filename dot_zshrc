@@ -204,4 +204,14 @@ source $HOME/.keys/llm_provider_env
 # Docker sbx
 export PATH="/home/hff/.docker/sbx/bin:$PATH"
 
+# smolvm
+export PATH="/home/hff/.local/bin/smolvm:$PATH"
 
+
+# pnpm
+export PNPM_HOME="/home/hff/.local/share/pnpm"
+case ":$PATH:" in
+  *":$PNPM_HOME:"*) ;;
+  *) export PATH="$PNPM_HOME:$PATH" ;;
+esac
+# pnpm end
