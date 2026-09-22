@@ -53,5 +53,5 @@ cyan = "#6d96a5"
 white = "#aeb3bb"
 
 [font]
-normal = {family = "Iosevka"}
-size = 16
+normal = {family = "Iosevka Term"}
+size = 14
