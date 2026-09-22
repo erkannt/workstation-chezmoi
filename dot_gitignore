@@ -3,4 +3,8 @@
 mise.toml
 .devcontainer
 .zed/
+.claude/
+.crit/
+.crit.config.json
+.opencode/
 
