@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+git fetch --all --prune 2>/dev/null || true
+
+preview() {
+  local branch base behind ahead created latest
+  branch="$1"
+
+  # Pick base branch: main first, then master
+  if git show-ref --verify --quiet refs/heads/main; then
+    base="main"
+  elif git show-ref --verify --quiet refs/heads/master; then
+    base="master"
+  fi
+
+  if [[ -n "$base" ]]; then
+    behind=$(git rev-list --count "$branch"..$base 2>/dev/null || echo 0)
+    ahead=$(git rev-list --count $base.."$branch" 2>/dev/null || echo 0)
+    printf 'vs %s: +%s / -%s' "$base" "$ahead" "$behind"
+  else
+    echo 'vs main/master: base not found'
+  fi
+
+  created=$(git log --reverse --format='%cd' --date=format:'%Y-%m-%d' "$branch" 2>/dev/null | head -1)
+  latest=$(git log -1 --format='%cd' --date=format:'%Y-%m-%d' "$branch" 2>/dev/null)
+  printf '  |  created: %s' "$created"
+  printf '  |  latest:  %s\n' "$latest"
+  git log --pretty='format:%C(auto)%h %an%x09%s' --color=always "$branch" 2>/dev/null | head -n 20
+}
+
+export -f preview
+
+branch=$(
+  git branch --all --sort=-committerdate --format='%(refname:short)' |
+    grep -v '^HEAD$' |
+    fzf --ansi --height 40% --reverse --border \
+      --prompt 'Checkout branch: ' \
+      --preview 'bash -c "preview \"\$1\"" _ {}'
+)
+
+[[ -z "${branch:-}" ]] && exit 0
+
+local_branch=${branch#origin/}
+
+if ! git show-ref --verify --quiet "refs/heads/$local_branch"; then
+  git checkout -b "$local_branch" --track "$branch"
+else
+  git checkout "$local_branch"
+fi
