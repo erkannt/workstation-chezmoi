@@ -5,18 +5,19 @@ set -euo pipefail
 source /home/hff/.keys/pongo-minio-restic-service-account.env
 
 restic \
-	--repo s3:http://pongo:9000/hff-restic2 \
-	--password-file /home/hff/.keys/pongo-restic.txt \
-	backup \
-	--exclude=".ansible" \
-	--exclude=".cache" \
-	--exclude="void-packages" \
-	--exclude="quickemu" \
-	--exclude="virtual-machines" \
-	--exclude=".gvfs" \
-	--exclude="Downloads" \
-	--exclude="eva/Eva-Cambridge" \
-	--exclude=".local/share/Trash" \
-	/home/hff \
-	&& curl https://hc-ping.com/b5d37ac7-1610-40d3-ac0f-025af1219fd7
-
+  --repo s3:http://pongo:9000/hff-restic2 \
+  --password-file /home/hff/.keys/pongo-restic.txt \
+  backup \
+  --exclude=".ansible" \
+  --exclude=".cache" \
+  --exclude="void-packages" \
+  --exclude="quickemu" \
+  --exclude="virtual-machines" \
+  --exclude=".gvfs" \
+  --exclude="Downloads" \
+  --exclude="eva/Eva-Cambridge" \
+  --exclude=".local/share/Trash" \
+  --exclude=".local/state/sandboxes" \
+  --exclude=".platformio" \
+  /home/hff &&
+  curl https://hc-ping.com/b5d37ac7-1610-40d3-ac0f-025af1219fd7
